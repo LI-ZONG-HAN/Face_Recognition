@@ -1,4 +1,6 @@
 # Face_Recognition
+## Introduction
+My backbone network is Resnet-50 V1 ,whose output dimension is 512, trained by "ArcLoss" loss layer. My training data is provided by Trillion Pairs which is cleaned from MS-Celeb-1M and Asian-Celeb.The best performance for face recognition so far is 1.LFW: 99.3% accurace 2. 93% true accept rate under 0.0001 % false accept rate on 1:1 verification
 ## Contents
 
 ### Model
