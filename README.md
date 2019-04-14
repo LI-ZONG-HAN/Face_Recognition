@@ -22,6 +22,7 @@ Batch Size : 50
 ### How to run training
 
 Step 1: Put the packed binary format data in the floder named "training"
+
 Step 2: run train_Arc_loss_multi_task.py
 ```
 python train_Arc_loss_multi_task.py
