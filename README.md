@@ -13,7 +13,16 @@ Training data is downloaded from [Trillion Pairs](http://trillionpairs.deepglint
 All face images are aligned by [Dlib: 5-point landmark](http://blog.dlib.net/2017/09/fast-multiclass-object-detection-in.html) and and cropped to 224x224 and packed in binary format
 
 ### Train
-My environment is windows 10 + Python 3.5(installed by Anaconda) + Tensorflow 1.5.0 GPU version
+Environment : windows 10 + Python 3.5(installed by Anaconda) + Tensorflow 1.5.0 GPU version
 
-GPU is 1080Ti
+GPU : 1080Ti
 
+Batch Size : 50
+
+### How to run training
+
+Step 1: Put the packed binary format data in the floder named "training"
+Step 2: run train_Arc_loss_multi_task.py
+```
+python train_Arc_loss_multi_task.py
+```
