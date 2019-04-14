@@ -27,6 +27,9 @@ Step 2: run train_Arc_loss_multi_task.py
 ```
 python train_Arc_loss_multi_task.py
 ```
+In the training process, trained model and training log will saved at "Model" floder
+
+It will create a floder named loss_debug to save the loss of each step.
 
 About learning rate decay.Instead of steps or polynomial decay, the learning rate will dacay automatically when loss stop improving.
 it will make the network trained better because you never know how many steps the training need before you train it. 
