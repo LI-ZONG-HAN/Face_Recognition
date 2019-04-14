@@ -32,3 +32,10 @@ About learning rate decay.Instead of steps or polynomial decay, the learning rat
 it will make the network trained better because you never know how many steps the training need before you train it. 
 
 [How to determine loss stop improving](http://blog.dlib.net/2018/02/automatic-learning-rate-scheduling-that.html)
+
+## On going
+### Training with larger batch size
+Bigger batch size seems to make the network trained better
+
+### Multi-task training 
+I plan to train three tasks which are FR, gender and age classification in the same network. They will share the resnet-50 network. I have finished the code. 
