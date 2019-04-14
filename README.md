@@ -4,7 +4,7 @@ My backbone network is Resnet-50 V1 ,whose output dimension is 512, trained by "
 ## Contents
 
 ### Model
-  Feature extraction : Resnet-50 V1. My Pre-trained model is provided by Tensorflow [Tensorflow](https://github.com/tensorflow/models/tree/master/research/slim)
+  Feature extraction : Resnet-50 V1. My [Pre-trained model] (https://github.com/tensorflow/models/tree/master/research/slim) is provided by Tensorflow
   
   Loss layer : [Arc Loss layer](https://github.com/deepinsight/insightface)
 ### Training Data
