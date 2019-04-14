@@ -33,7 +33,6 @@ It will create a floder named loss_debug to save the loss of each step.
 
 About learning rate decay.Instead of steps or polynomial decay, the learning rate will dacay automatically when loss stop improving.
 it will make the network trained better because you never know how many steps the training need before you train it. 
-
 [How to determine loss stop improving](http://blog.dlib.net/2018/02/automatic-learning-rate-scheduling-that.html)
 
 ## On going
