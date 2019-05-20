@@ -44,70 +44,93 @@ def load_path_lists(data_dir):
         results.append(temp_array)
     return results
 
-def load_path_lm_lists(data_dir,flie_name):
-    with open(os.path.join(data_dir,flie_name),"r") as f:
-        lines = f.readlines()
-        lines = [f.strip() for f in lines]   
-        path_list = np.array([data_dir+"/"+f.strip().split(" ",1)[0] for f in lines])
-        lm_list = np.array([f.strip().split(" ",1)[1].split(" ")[1:] for f in lines],dtype = np.float32)
-        label_list = [f.split("/")[2] for f in path_list]
-        hush_table = {}
-        path_list_by_id = []
-        lm_list_by_id =[]
-        keys_list_temp=[]
-        for i,l in enumerate(label_list):
-            if l not in hush_table.keys():
-                hush_table[l] = [i]
-                keys_list_temp.append(l)
+"""
+def reformat(data_dir,train_sets, concatenate = False):
+    #train_sets = ["gender_valid", "gender_training"]
+    f_bin_path_train = []
+    indexs_train = []
+    temp_np = None
+    #data_dir = "training/gender_data"
+    if concatenate:
+        for i, name in enumerate(train_sets):
+            file_name = name+".idx"
+            f_bin_path_train.append(os.path.join(data_dir,name+".bin"))
+            _,indexs_temp,_,_,_ = load_index_lists(data_dir,file_name)
+            if i == 0:
+                temp_np = indexs_temp
             else:
-                hush_table[l] += [i]
-        #for k,v in hush_table.items():
-        #    path_list_by_id.append(path_list[v])
-        #    lm_list_by_id.append(lm_list[v])
-        for k in keys_list_temp:
-            path_list_by_id.append(path_list[hush_table[k]])
-            lm_list_by_id.append(lm_list[hush_table[k]])
+                for i in range(len(indexs_temp)):
+                    temp_np[i] = np.concatenate((temp_np[i], indexs_temp[i]), axis=0)
         
-        labels = []
-        for i, ls in enumerate(path_list_by_id):
-            labels += [i for num in range(ls.shape[0])]
-        labels = np.array(labels, dtype = np.int32)
-        del label_list
-        del hush_table
-    return path_list_by_id, lm_list_by_id, path_list, lm_list, labels
+        indexs_train.append(temp_np)
+    else:
+        for i, name in enumerate(train_sets):
+            file_name = name+".idx"
+            f_bin_path_train.append(os.path.join(data_dir,name+".bin"))
+            _,indexs_temp,_,_,_ = load_index_lists(data_dir,file_name)
+            indexs_train.append(indexs_temp)
+
+    return f_bin_path_train, indexs_train
+"""	
+def reformat(data_dir,train_sets, concatenate = False):
+    f_bin_path_train = []
+    indexs_train = []
+    temp_np = None
+    temp_bin_idx = None
+    img_bin_index = []
+    if concatenate:
+        for i, name in enumerate(train_sets):
+            file_name = name+".idx"
+            f_bin_path_train.append(os.path.join(data_dir,name+".bin"))
+            _,indexs_temp,_,_,_ = load_index_lists(data_dir,file_name)
+            bin_idx_temp = [ np.array(array.shape[0]*[i],dtype = np.uint32) for array in indexs_temp]
+            if i == 0:
+                temp_np = indexs_temp
+                temp_bin_idx = bin_idx_temp
+            else:
+                for k in range(len(indexs_temp)):
+                    temp_np[k] = np.concatenate((temp_np[k], indexs_temp[k]), axis=0)
+                    temp_bin_idx[k] = np.concatenate((temp_bin_idx[k], bin_idx_temp[k]), axis=0)
+        
+        indexs_train  += temp_np
+        img_bin_index += temp_bin_idx
+    else:
+        for i, name in enumerate(train_sets):
+            file_name = name+".idx"
+            f_bin_path_train.append(os.path.join(data_dir,name+".bin"))
+            _,indexs_temp,_,_,_ = load_index_lists(data_dir,file_name)
+            indexs_train += indexs_temp
+            img_bin_index += [ np.array(array.shape[0]*[i],dtype = np.uint32) for array in indexs_temp]
+
+    return f_bin_path_train, indexs_train, img_bin_index
+	
 def load_index_lists(data_dir,flie_name):
     with open(os.path.join(data_dir,flie_name),"r") as f:
         lines = f.readlines()
-        lines = [f.strip() for f in lines]   
-        path_list = np.array([data_dir+"/"+f.strip().split(" ",1)[0] for f in lines])
-        index_list = np.array([f.strip().split(" ")[1:] for f in lines],dtype = np.uint64)
-        label_list = [f.split("/")[2] for f in path_list]
+        lines = [f.strip() for f in lines]
+        labels = np.array([f.strip().split("\t")[1] for f in lines],dtype = np.uint64)
+        path_list = np.array([data_dir+"/"+f.strip().split("\t",1)[0] for f in lines])
+        index_list = np.array([f.strip().split("\t")[2:] for f in lines],dtype = np.uint64)
+		
         hush_table = {}
+        for i in range(np.amax(labels).tolist()+1):
+            hush_table[i] = []
+
         path_list_by_id = []
         index_list_by_id =[]
-        keys_list_temp=[]
-        for i,l in enumerate(label_list):
-            if l not in hush_table.keys():
-                hush_table[l] = [i]
-                keys_list_temp.append(l)
-            else:
-                hush_table[l] += [i]
+        for i,l in enumerate(labels):
+            hush_table[l] += [i]
 
-        for k in keys_list_temp:
+        for k in range(np.amax(labels).tolist()+1):
             path_list_by_id.append(path_list[hush_table[k]])
             index_list_by_id.append(index_list[hush_table[k]])
         
-        labels = []
-        for i, ls in enumerate(path_list_by_id):
-            labels += [i for num in range(ls.shape[0])]
-        labels = np.array(labels, dtype = np.int32)
-        del label_list
         del hush_table
     return path_list_by_id, index_list_by_id, path_list, index_list, labels
 
 
 class FR_Data_Thread_by_Class(threading.Thread):
-    def __init__(self, threadID, seed,index_lists,f_bin_paths, num_class, img_no_per_class, img_height,img_width,task,q):
+    def __init__(self, threadID, seed,index_lists,f_bin_paths,bin_idx, num_class, img_no_per_class, img_height,img_width,task,q,label_shift = 0):
         threading.Thread.__init__(self)
         super(FR_Data_Thread_by_Class, self).__init__()
         self.threadID = threadID
@@ -120,17 +143,20 @@ class FR_Data_Thread_by_Class(threading.Thread):
         self._img_width = img_width
         self._channels = 3
         self._thread_stop = False 
-        self._index_lists = []
-        self._bin_idx = []
-        for i, list in enumerate(index_lists):
-            self._index_lists += list
-            self._bin_idx += [i for a in range(len(list))]
+        self._index_lists = index_lists
+        self._bin_idx = bin_idx
+        #self._index_lists = []
+        #self._bin_idx = []
+        #for i, list in enumerate(index_lists):
+        #    self._index_lists += list
+        #    self._bin_idx += [i for a in range(len(list))]
 
         self._total_classes = len(self._index_lists)
         self._padding = 0.25
         self._task = task
         self._f_bin_paths = f_bin_paths
         self._f_bins = []
+        self._label_shift = label_shift
        
     
     def _randomize(self, lists, seed):
@@ -171,8 +197,11 @@ class FR_Data_Thread_by_Class(threading.Thread):
                     break
                 read_start = self._index_lists[label][index][0]
                 read_end = self._index_lists[label][index][1]
-                self._f_bins[self._bin_idx[label]].seek(read_start)
-                data = self._f_bins[self._bin_idx[label]].read(read_end - read_start)
+                bin_idx = self._bin_idx[label][index]
+                #self._f_bins[self._bin_idx[label]].seek(read_start)
+                self._f_bins[bin_idx].seek(read_start)
+                #data = self._f_bins[self._bin_idx[label]].read(read_end - read_start)
+                data = self._f_bins[bin_idx].read(read_end - read_start)
                 img = Image.open(io.BytesIO(data))
                 h,w = img.size
                 if (h != self._img_height or w != self._img_width):
@@ -182,7 +211,7 @@ class FR_Data_Thread_by_Class(threading.Thread):
    
                 res["img"][count,:,:,:] = np.array(crop_img)
                 if self._task == "FR":
-                    res["label"][count] = label
+                    res["label"][count] = label + self._label_shift
                 else: #soft one-hot
                     res["label"][count,:] = (1-0.9)/(self._total_classes-1)
                     res["label"][count,label] = 0.9
@@ -611,68 +640,112 @@ def main():
         wid = "{:02d}-{:02d}_{:02d}-{:02d}".format( time.localtime()[1], time.localtime()[2], \
                                       time.localtime()[3],time.localtime()[4])
         #tf.logging.info("work ID: %s", wid)
-        exp_dir = "Model/{}".format(wid)
-        #exp_dir = "Log\\#41_04-10_12-13"
+        #exp_dir = "Model/{}".format(wid)
+        exp_dir = "Model/05-16_12-15"
         if not os.path.exists(exp_dir):
             os.makedirs(exp_dir)
         
         log_period_secs = 50
         logger = Logger(wid, exp_dir+"\log.txt", log_period_secs)
         FR_queue = Queue(maxsize=100)
-        		
-        #train_sets = ["FR_asian_training","FR_west_training"]
-        train_sets = ["FR_asian_valid","FR_west_valid"]
-        FR_f_bin_path_train = []
-        FR_indexs_train = []
-        FR_data_dir = "training"
-        for name in train_sets:
-            FR_file_name = name+".idx"
-            FR_f_bin_path_train.append(os.path.join(FR_data_dir,name+".bin"))
-            _,indexs_temp,_,_,_ = load_index_lists(FR_data_dir,FR_file_name)
-            FR_indexs_train.append(indexs_temp)
-		
-        valid_sets = ["FR_asian_valid","FR_west_valid"]
-        FR_f_bin_path_valid = []
-        FR_indexs_valid = []
-        FR_data_dir = "training"
-        for name in valid_sets:
-            FR_file_name = name+".idx"
-            FR_f_bin_path_valid.append(os.path.join(FR_data_dir,name+".bin"))
-            _,indexs_temp,_,_,_ = load_index_lists(FR_data_dir,FR_file_name)
-            FR_indexs_valid.append(indexs_temp)
+        Gender_queue = Queue(maxsize=100)
+        Age_queue = Queue(maxsize=100)
+        	
+        Gender_train_sets = ["gender_training"]
+        Gender_data_dir = "training/gender_data"
+        Gender_f_bin_path_train , Gender_indexs_train, Gender_f_bin_idx_train = reformat(Gender_data_dir,Gender_train_sets,True)
 
-        train_IDs = 0 
-        valid_IDs = 0
-        for list in FR_indexs_train:
-            train_IDs += len(list)
-        for list in FR_indexs_valid:
-            valid_IDs += len(list)
+        Gender_valid_sets = ["gender_valid","gender_test"]
+        Gender_f_bin_path_valid , Gender_indexs_valid, Gender_f_bin_idx_valid = reformat(Gender_data_dir,Gender_valid_sets,True)
+       
+			
+        train_IDs = len(Gender_indexs_train)
+        valid_IDs = len(Gender_indexs_valid)
+        
+        print ("train_num: ", train_IDs)
+        print ("valid_num: ", valid_IDs)
+        print(Gender_indexs_train[0].shape)
+        
+		
+        thread_num_Gender = 0
+        Gender_loader = []
+        for i in range(thread_num_Gender):
+            Gender_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,Gender_indexs_train,Gender_f_bin_path_train,Gender_f_bin_idx_train,2,32,Img_H,Img_W,"Gender",Gender_queue))
+            Gender_loader[i].start()
+        
+        #Gender_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,Gender_indexs_valid,Gender_f_bin_path_valid,Gender_f_bin_idx_valid,2,100,Img_H,Img_W,"Gender",FR_queue)
+        #Gender_valid_env.open_bin()
+        #Gender_valid_data = Gender_valid_env.get_data()
+        #Gender_valid_env.close_bin()
+        #del Gender_valid_env
+        #print(Gender_valid_data["img"].shape)
+
+        
+        Age_train_sets = ["age_training_2"]
+        Age_data_dir = "training/age_data"
+        Age_f_bin_path_train , Age_indexs_train, Age_f_bin_idx_train = reformat(Age_data_dir,Age_train_sets,True)
+        
+        Age_valid_sets = ["age_valid_2"]
+        Age_f_bin_path_valid , Age_indexs_valid, Age_f_bin_idx_valid = reformat(Age_data_dir,Age_valid_sets,True)
+        
+        train_IDs = len(Age_indexs_train)
+        valid_IDs = len(Age_indexs_valid)
 		
         print ("train_num: ", train_IDs)
         print ("valid_num: ", valid_IDs)
-        print(FR_indexs_train[0][0].shape)
-        #return
+
+        
+        thread_num_Age = 0
+        Age_loader = []
+        for i in range(thread_num_Age):
+            Age_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,Age_indexs_train,Age_f_bin_path_train,Age_f_bin_idx_train,7,10,Img_H,Img_W,"Age",Age_queue))
+            Age_loader[i].start()
+        
+        #Age_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,Age_indexs_valid,Age_f_bin_path_valid,Age_f_bin_idx_valid,7,100,Img_H,Img_W,"Age",FR_queue)
+        #Age_valid_env.open_bin()
+        #Age_valid_data = Age_valid_env.get_data()
+        #Age_valid_env.close_bin()
+        #del Age_valid_env
+        #print(Age_valid_data["img"].shape)
+
+        FR_train_sets = ["FR_west_training"]
+        FR_data_dir = "training"
+        FR_f_bin_path_train , FR_indexs_train, FR_f_bin_idx_train = reformat(FR_data_dir,FR_train_sets,False)
+              
+        FR_valid_sets = ["FR_west_valid","FR_asian_valid"]
+        FR_f_bin_path_valid , FR_indexs_valid, FR_f_bin_idx_valid = reformat(FR_data_dir,FR_valid_sets,False)
+        
+        train_IDs = len(FR_indexs_train)
+        valid_IDs = len(FR_indexs_valid)
+        
+		
+        print ("train_num: ", train_IDs)
+        print ("valid_num: ", valid_IDs)
+        print(FR_indexs_train[0].shape)
+
         FR_thread_num = 16
         data_loader = []
+        label_shift = 0
         for i in range(FR_thread_num):
-            data_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,FR_indexs_train,FR_f_bin_path_train,30,5,Img_H,Img_W,"FR",FR_queue))
+            data_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,FR_indexs_train,FR_f_bin_path_train,FR_f_bin_idx_train,30,5,Img_H,Img_W,"FR",FR_queue,label_shift))
             data_loader[i].start()
         
-        FR_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,FR_indexs_valid,FR_f_bin_path_valid,300,2,Img_H,Img_W,"FR",FR_queue)
+        FR_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,FR_indexs_valid,FR_f_bin_path_valid,FR_f_bin_idx_valid,300,2,Img_H,Img_W,"FR",FR_queue)
         FR_valid_env.open_bin()
         FR_valid_data = FR_valid_env.get_data()
         FR_valid_env.close_bin()
+        del FR_valid_env
+        print("FR_valid ",FR_valid_data["img"].shape)
 		
 
-        #train_batch = {"img":np.ndarray(shape=[10,Img_H,Img_W,3])}
-        train_batch = FR_queue.get()
-        FR_queue.task_done()
-        print("FR_valid ",FR_valid_data["img"].shape)
-        net = ArcFace.Res50_Arc_loss(train_batch,train_IDs,g1)
+        train_batch = {"img":np.ndarray(shape=[10,Img_H,Img_W,3])}
+        #train_batch = FR_queue.get()
+        #FR_queue.task_done()
+        net = ArcFace.Res50_Arc_loss(train_batch,train_IDs+label_shift,g1)
         task = net._task
 
         del train_batch
-        del FR_valid_env
+        
         
         var_init_op = tf.global_variables_initializer()
     
@@ -680,8 +753,8 @@ def main():
         save_period_secs = 300
         saver = PeriodicSaver(cp_path, save_period_secs)
 		
-        #saved_file_path = "Model/#41_04-10_12-13/eval_cp"
-        saved_file_path= None
+        saved_file_path = "Model/05-16_12-15/checkpoint"
+        #saved_file_path= None
         with tf.Session(config=net._config) as sess:
             net.session = sess
             sess.run(var_init_op)       
@@ -690,6 +763,12 @@ def main():
             if saved_file_path == None:
                 net.load_pre_trained_ckpt("Model/resnet_v1_50.ckpt")
             else:
+			
+                #pre_trained_variables = [var for var in net._variables_to_restore
+                #                         if not (var.name.startswith('step') or var.name.startswith('fc_Gender') or var.name.startswith('fc_Age_')
+			    #						 or var.name.startswith('lr') or var.name.find('Momentum') >= 0 ) ]
+            
+                #saver_ckpt = tf.train.Saver(pre_trained_variables)
                 saver_ckpt = tf.train.Saver()  
                 ckpt = tf.train.get_checkpoint_state(saved_file_path)
                 print (ckpt.model_checkpoint_path)
@@ -700,18 +779,19 @@ def main():
             valid_save_path = exp_dir+"/eval_cp/a"
             train_save_path = ""
             evaluator_FR = Evaluator_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
-            #evaluator_Gender = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
-            #evaluator_Age = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
+            evaluator_Gender = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
+            evaluator_Age = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
             saver.session = sess
             print ("start_training")
             count = 0
-            #sess.run(tf.assign(net._lr_rate[task[0]],1e-5))
+            #sess.run(tf.assign(net._lr_rate[task[0]],1e-7))
             sess.run(tf.assign(net._lr_rate[task[1]],1e-7))
             sess.run(tf.assign(net._lr_rate[task[2]],1e-7))
+            #sess.run(tf.assign(net._step_cnt_op,0))
             training_stop = False
             while (not training_stop):
-                if (count%800 == 0):
-                    print("FR_queue.size{:3d}".format(FR_queue.qsize()))
+                if (count%1600 == 0):
+                    print("FR_queue.size{:3d}, Gender_queue.size{:3d}, Age_queue.size{:3d},".format(FR_queue.qsize(),Gender_queue.qsize(), Age_queue.qsize()))
 
                 count += 1
                 if count%3 == 0 and net._lr_rate[task[0]].eval() >= 1e-6:
@@ -722,7 +802,7 @@ def main():
                     evaluator_FR.valid_eval(FR_valid_data,task[0])
                     logger.log(net.step_cnt())
                     logger._vals.clear()
-                """
+                
                 elif count%3 == 1 and net._lr_rate[task[1]].eval() >= 1e-6:
                     #print(task[1]+"_L2_loss: ",net._l2_loss[task[1]].eval())
                     train_batch = Gender_queue.get()
@@ -741,14 +821,14 @@ def main():
                     Age_queue.task_done()
                     #t1 = time.time()
                     evaluator_Age.train_eval(train_batch,task[2])
-                    #net.train_one_step(train_batch,task[2])
+                    net.train_one_step(train_batch,task[2])
                     evaluator_Age.valid_eval(Age_valid_data,task[2])
                     #sum_time_2 += time.time() - t1
                     logger.log(net.step_cnt())
                     logger._vals.clear()
                 else:
                     continue
-                """
+                
                 saver.save(net.step_cnt())			
                 training_stop = True
                 for key in task:
