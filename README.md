@@ -12,7 +12,7 @@ Training data is downloaded from [Trillion Pairs](http://trillionpairs.deepglint
 
 All face images are aligned by [Dlib: 5-point landmark](http://blog.dlib.net/2017/09/fast-multiclass-object-detection-in.html) and and cropped to 224x224 and packed in binary format
 
-How to packed in binary format ? pls see [Data_floder](https://github.com/LI-ZONG-HAN/Face_Recognition/tree/master/Data)
+How to packed in binary format ? pls see [Data](https://github.com/LI-ZONG-HAN/Face_Recognition/tree/master/Data)
 
 ### Train
 Environment : windows 10 + Python 3.5(installed by Anaconda) + Tensorflow 1.5.0 GPU version
