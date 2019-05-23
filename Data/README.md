@@ -1,12 +1,14 @@
-# Face_Recognition
-## Introduction
-My backbone network is Resnet-50 V1 ,whose output dimension is 512, trained by "ArcLoss" loss layer. My training data is provided by Trillion Pairs which is cleaned from MS-Celeb-1M and Asian-Celeb.The best performance for face recognition so far is 1.LFW: 99.3% accurace 2. Megaface: 93% true accept rate under 0.0001% false accept rate on 1:1 verification
-## Contents
+# Make images data to binary files for training
+## Why
+The older way i used is that load separate images in HD in each batch.It takes a long time at open each image files. Therefor i packed all image files in one big binary file and the position for each image in the bin file is recorded in the idx file. 
+## content
+After data is packed.Two file will be created.
 
-### Model
-  Backbone network : Resnet-50 V1 with 512 dim output. My [Pre-trained model] (https://github.com/tensorflow/models/tree/master/research/slim) is provided by Tensorflow
-  
-  Loss layer : [Arc Loss layer](https://github.com/deepinsight/insightface)
+bin: image data
+
+idx: record original_file_path / label / start position in bin / end position in bin
+
+
 ### Training Data
 Training data is downloaded from [Trillion Pairs](http://trillionpairs.deepglint.com/overview) (both MS-Celeb-1M-v1c and Asian-Celeb)
 
