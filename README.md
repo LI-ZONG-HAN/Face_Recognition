@@ -12,6 +12,8 @@ Training data is downloaded from [Trillion Pairs](http://trillionpairs.deepglint
 
 All face images are aligned by [Dlib: 5-point landmark](http://blog.dlib.net/2017/09/fast-multiclass-object-detection-in.html) and and cropped to 224x224 and packed in binary format
 
+How to packed in binary format ? pls see Data floder
+
 ### Train
 Environment : windows 10 + Python 3.5(installed by Anaconda) + Tensorflow 1.5.0 GPU version
 
@@ -27,8 +29,12 @@ Step 2: run train_Arc_loss_multi_task.py
 ```
 python train_Arc_loss_multi_task.py FR -train_sets bin_file_name -valid_sets bin_file_name
 ```
-bin-file-name not including Extension
+bin-file-name not including Extension.
 
+If you want to see all arguments, pls typing
+```
+python train_Arc_loss_multi_task.py -h
+```
 In the training process, trained model and training log will saved at "Model" floder
 
 It will create a floder named loss_debug to save the loss of each step.
