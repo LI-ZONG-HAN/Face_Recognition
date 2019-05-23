@@ -54,7 +54,13 @@ After program complete, two files bin and idx will be created in root_floder
 
 bin : image data
 
-idx : Four columns mean original_file_path/label/start position in bin/end position in bin 
+idx : There four columns, original_file_path/label/start position in bin/end position in bin 
 
+### recovery bin to images
+
+pls type
+```
+python bin_to_image.py -in_dir bin_floder_path -bin_name bin_file_name -out_dir floder_to_save_images
+```
 
 
