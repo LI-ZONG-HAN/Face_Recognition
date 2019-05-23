@@ -4,17 +4,29 @@ The older way i used is that load separate images in HD in each batch.It takes a
 ## How
 
 top_level_directory/
-        person1/
+        
+        label1/
+        
             image1.jpg
+            
             image2.jpg
+            
             image3.jpg
-        person2/
+        
+        label2/
+            
             image4.jpg
+            
             image5.jpg
+            
             image6.jpg
-        person3/
+        
+        label3/
+            
             image7.jpg
+            
             image8.jpg
+            
             image9.jpg
 
 After data is packed.Two file will be created.
