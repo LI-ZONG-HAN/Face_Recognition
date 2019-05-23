@@ -1,7 +1,22 @@
 # Make images data to binary files for training
 ## Why
 The older way i used is that load separate images in HD in each batch.It takes a long time at open each image files. Therefor i packed all image files in one big binary file and the position for each image in the bin file is recorded in the idx file. 
-## content
+## How
+
+top_level_directory/
+        person1/
+            image1.jpg
+            image2.jpg
+            image3.jpg
+        person2/
+            image4.jpg
+            image5.jpg
+            image6.jpg
+        person3/
+            image7.jpg
+            image8.jpg
+            image9.jpg
+
 After data is packed.Two file will be created.
 
 ### bin
