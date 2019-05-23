@@ -46,5 +46,4 @@ it will make the network trained better because you never know how many steps th
 ### Training with larger batch size
 Bigger batch size seems to make the network trained better
 
-### Multi-task training 
-I plan to train three tasks which are FR, gender and age classification in the same network. They will share the resnet-50 network. I have finished the code. 
+
