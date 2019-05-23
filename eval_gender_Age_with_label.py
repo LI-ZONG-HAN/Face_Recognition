@@ -7,6 +7,7 @@ import threading
 from queue import Queue
 import os
 import dlib
+import argparse
 
 def pre_process(input_batch):
     imgs = (input_batch - 255.0/2) / (255.0/2)
@@ -265,222 +266,238 @@ def Confusion_M(preds, labels):
     return confusion_acc , confusion_cnt, mapping_img_path
 			
 
+
+parser = argparse.ArgumentParser(description = 'eval gender Age with label')
+parser.add_argument('Gender_or_Age', type=str, help='pls type Gender or Age"')
+parser.add_argument('-dir', required=True, type=str, help='Path to floder of eval dataset')
+parser.add_argument('-model', '--load_model_path', required=True, type=str, default = None, help='(optional) pre-trained model to be load')
+parser.add_argument('-img_w', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
+parser.add_argument('-fr_dim', '--FR_Emb_Dim', type=int, default = 512, help='(optional) FR_Embedding_Dims Default: 512')
+args = parser.parse_args()	
+
+task = ["Gender","Age"]
+eval_item = task.index(args.Gender_or_Age) if (args.Gender_or_Age in task) else -1
+emb_dim = args.FR_Emb_Dim
+data_floder = args.dir
+model_path = args.load_model_path
+img_W = args.imgage_width
+img_H = img_W
+print("{:15}{}".format("eval_item",task[eval_item]))
+print("{:15}{}".format("data_floder",data_floder))
+print("{:15}{}".format("model_path",model_path))
+print("{:15}{}".format("image_width",img_W))
+print("{:15}{}".format("emb_dim",emb_dim))
+
+if (eval_item < 0):
+    print("training_item not found in task, task = [\"Gender\",\"Age\"]")
+else:
+	tf.reset_default_graph()
+	#emb_dim = 512
+	index = 0
+	FD_Lost_c = 0
+	detect_c = 0
+
+	g_Lock = threading.Lock()
+
+
+	if eval_item:
+        #Age_Dataset_dir = "training/age_data/__age_valid_2"
+	    path_lists_temp = load_path_lists(data_floder)
+	    print(len(path_lists_temp))
+	else:
+	    #Gender_Dataset_dir = "training/gender_data/__gender_valid"
+	    path_lists_temp = load_path_lists(data_floder)
+	    path_lists_temp = path_lists_temp[0:2]
+
+
+	Num_Classes = len(path_lists_temp)
+	path_list = []
+	label_list = []
+	for i in range(len(path_lists_temp)):
+		label_list += [i for l in path_lists_temp[i]]	
+		path_list += path_lists_temp[i]
+
+	print(len(label_list))
+	print(len(path_list))
+
+
+	my_queue = Queue(maxsize=100)
+	batch_size = 20
+	thread_num = 5
 	
-tf.reset_default_graph()
-
-emb_dim = 512
-index = 0
-FD_Lost_c = 0
-detect_c = 0
-
-g_Lock = threading.Lock()
+	jitter_count = 0
 
 
+	g2 = load_graph(model_path)
+	data_loader = []
+	for i in range(thread_num):
+		data_loader.append(Data_Thread(i+1,batch_size, img_H,img_W, jitter_count, my_queue))
+		data_loader[i].start()
 
-Gender_Dataset_dir = "gender_test\\gender_test_result"
-path_lists_temp = load_path_lists(Gender_Dataset_dir)
-path_lists_temp = path_lists_temp[0:2]
-print(len(path_lists_temp))
-print(len(path_lists_temp[0]))
-print(len(path_lists_temp[1]))
-print(type(path_lists_temp[0]))
-print(type(path_lists_temp[1]))
-"""
-
-
-Age_Dataset_dir = "training\\age_data\\__age_valid_2"
-path_lists_temp = load_path_lists(Age_Dataset_dir)
-print(len(path_lists_temp))
-"""
-
-Num_Classes = len(path_lists_temp)
-path_list = []
-label_list = []
-for i in range(len(path_lists_temp)):
-    label_list += [i for l in path_lists_temp[i]]	
-    path_list += path_lists_temp[i]
-
-print(len(label_list))
-print(len(path_list))
-
-
-my_queue = Queue(maxsize=100)
-batch_size = 20
-thread_num = 5
-img_H = 224
-img_W = 224
-jitter_count = 0
-
-model_path = "Log\\#38_03-12_11-21\\frozen_model_valid.pb"
-print (model_path)
-g2 = load_graph(model_path)
-
-data_loader = []
-for i in range(thread_num):
-	data_loader.append(Data_Thread(i+1,batch_size, img_H,img_W, jitter_count, my_queue))
-	data_loader[i].start()
-
-    
-	
-    
-
-"""
-jitter_count = 0
-run_count = 0
-last_batch = False
-while(1):
-    if run_count%50==0:
-        print ("batch_run= ",run_count," Index= ", index)
-				
-    run_count += 1
-
-    if last_batch and my_queue.empty():
-        test_bool = True
-        for i in range(thread_num):
-            test_bool = (test_bool and data_loader[i]._thread_stop)
-        if test_bool:
-            break
-
-	
-    test_batch = my_queue.get()
-    my_queue.task_done()
-    if not last_batch:
-        last_batch = test_batch["last_batch"]
 		
-    count = 0
-    if jitter_count:
-        list_imgs =[]
-        for i in range(test_batch["img"].shape[0]):
-            print(count)
-            count += 1
-            list_imgs += dlib.jitter_image(np.uint8(test_batch["img"][i]), num_jitters=jitter_count, disturb_colors=True)
-        imgs = np.array(list_imgs,dtype = np.float32)
-    else:
-        imgs = test_batch["img"]
-        
-    floder = "landmark_check"
-    if jitter_count:
-        for i,path in enumerate(test_batch["path_list"]):
-            file_name, ext = path.rsplit("\\",1)[-1].rsplit(".",1)
-            for j in range(jitter_count):
-                img_s= Image.fromarray(np.uint8(imgs[i*jitter_count + j]))
-                new_path = os.path.join(floder,file_name+"_"+str(j)+"."+ext)
-                print(new_path)
-                img_s.save(new_path)
-    else:
-        for i,path in enumerate(test_batch["path_list"]):
-            img_s= Image.fromarray(np.uint8(imgs[i]))
-            img_s.save(os.path.join(floder,path.rsplit("\\",1)[-1]))
-	
-"""
+		
+		
 
+	"""
+	jitter_count = 0
+	run_count = 0
+	last_batch = False
+	while(1):
+		if run_count%50==0:
+			print ("batch_run= ",run_count," Index= ", index)
+					
+		run_count += 1
 
-print ("total_img_no = ",len(path_list))
-last_batch = False
-tt1 = tt2 = tt3 = tt4 = tt5 = tts = 0
-t1 = time.time()
-Total_Pred = np.ndarray(shape=[len(path_list),Num_Classes],dtype = np.float32)
-Total_label = np.ndarray(shape=[len(path_list)],dtype = np.int32)
-start = 0
-with g2.as_default() :
-    x = g2.get_tensor_by_name('input:0')
-    Gender_out = g2.get_tensor_by_name('Gender:0')
-    Age_output = g2.get_tensor_by_name('Age:0')
-    output = Gender_out
-    with tf.Session(graph = g2) as sess:
-        print ("start_inference")
-        run_count = 0
-		#tt1 = tt2 = tt3 = tt4 = tt5 = tts = 0
-        while(1):
-            if run_count%50==0:
-                print ("batch_run= ",run_count," Index= ", index," queue_size= ",my_queue.qsize(),"  ",tt1,tt3,tt4)
-				#print ("my_queue.size= ",my_queue.qsize())
-                #print (tt1,tt2,tt3,tt4)
-                tt1 = tt2 = tt3 = tt4 = tt5 = tts = 0
-            run_count += 1
+		if last_batch and my_queue.empty():
+			test_bool = True
+			for i in range(thread_num):
+				test_bool = (test_bool and data_loader[i]._thread_stop)
+			if test_bool:
+				break
 
-            if last_batch and my_queue.empty():
-                test_bool = True
-                for i in range(thread_num):
-                    test_bool = (test_bool and data_loader[i]._thread_stop)
-                if test_bool:
-                    break
-
-            tt_s = time.time()
-            test_batch = my_queue.get()
-            my_queue.task_done()
-            tt1  += time.time() - tt_s
-            tt_s = time.time()
-
-
-            if not last_batch:
-                last_batch = test_batch["last_batch"]
-            
-            
-            #ttt_s = time.time()
-            #for i in range(50):
-            #    pre_process_dlib(test_batch["img"])
-            #print(time.time() - ttt_s)
-            #print(test_batch["img"].shape, test_batch["img"].dtype)
-            #print(test_batch["img_test"].shape, test_batch["img_test"].dtype)
+		
+		test_batch = my_queue.get()
+		my_queue.task_done()
+		if not last_batch:
+			last_batch = test_batch["last_batch"]
 			
-
-            
+		count = 0
+		if jitter_count:
+			list_imgs =[]
+			for i in range(test_batch["img"].shape[0]):
+				print(count)
+				count += 1
+				list_imgs += dlib.jitter_image(np.uint8(test_batch["img"][i]), num_jitters=jitter_count, disturb_colors=True)
+			imgs = np.array(list_imgs,dtype = np.float32)
+		else:
+			imgs = test_batch["img"]
 			
-            #Num_img = len(test_batch["path_list"])
-            #test_batch["img"] = np.concatenate((test_batch["img"],test_batch["img"][:,:,::-1,:]),axis = 0) #img flip
-            imgs = pre_process(test_batch["img"])
-
-           
-            
-            
-            if jitter_count:
-                N = len(test_batch["path_list"])
-                emb_np = np.ndarray(shape=[N,emb_dim],dtype = np.float32)
-                emb_np_temp = sess.run(output,feed_dict = {x:imgs})
-                for i in range(N):
-                    emb_np[i] = np.mean(emb_np_temp[i*jitter_count: (i+1)*jitter_count],axis = 0)
-                
-            else:
-                emb_np = sess.run(output,feed_dict = {x:imgs})
-
-
-            Total_Pred[start:start+emb_np.shape[0]] = emb_np
-            Total_label[start:start+emb_np.shape[0]] = test_batch["label"]
-            start += emb_np.shape[0]
-            tt3 += time.time() - tt_s
-            tt_s = time.time()
-			
-           
-            #emb_add = emb_np[0:Num_img] + emb_np[Num_img:]
-            #emb_add = emb_add / np.linalg.norm(emb_add,axis = 1).reshape(-1,1)
-            
-            
-						
-
-            tt4 += time.time() - tt_s
-            tt_s = time.time()
-            
-            
-
-print ("total_time= ", time.time()-t1)
+		floder = "landmark_check"
+		if jitter_count:
+			for i,path in enumerate(test_batch["path_list"]):
+				file_name, ext = path.rsplit("\\",1)[-1].rsplit(".",1)
+				for j in range(jitter_count):
+					img_s= Image.fromarray(np.uint8(imgs[i*jitter_count + j]))
+					new_path = os.path.join(floder,file_name+"_"+str(j)+"."+ext)
+					print(new_path)
+					img_s.save(new_path)
+		else:
+			for i,path in enumerate(test_batch["path_list"]):
+				img_s= Image.fromarray(np.uint8(imgs[i]))
+				img_s.save(os.path.join(floder,path.rsplit("\\",1)[-1]))
+		
+	"""
 
 
-    
-for i in range(thread_num):
-	data_loader[i]._thread_stop=True
-	data_loader[i].join()	
-    
-acc,cnt,_ = Confusion_M(Total_Pred,Total_label)
-print(Total_Pred.shape)
-print(Total_label.shape)
-average_acc = np.average(acc.diagonal())
-print("average_accuracy: ",average_acc)
-for a in cnt:
-    print(a)
+	print ("total_img_no = ",len(path_list))
+	last_batch = False
+	tt1 = tt2 = tt3 = tt4 = tt5 = tts = 0
+	t1 = time.time()
+	Total_Pred = np.ndarray(shape=[len(path_list),Num_Classes],dtype = np.float32)
+	Total_label = np.ndarray(shape=[len(path_list)],dtype = np.int32)
+	start = 0
+	with g2.as_default() :
+		x = g2.get_tensor_by_name('input:0')
+		Gender_out = g2.get_tensor_by_name('Gender:0')
+		Age_output = g2.get_tensor_by_name('Age:0')
+		if eval_item:
+			output = Age_output
+		else:
+			output = Gender_out
+		with tf.Session(graph = g2) as sess:
+			print ("start_inference")
+			run_count = 0
+			#tt1 = tt2 = tt3 = tt4 = tt5 = tts = 0
+			while(1):
+				if run_count%50==0:
+					print ("batch_run= ",run_count," Index= ", index," queue_size= ",my_queue.qsize(),"  ",tt1,tt3,tt4)
+					#print ("my_queue.size= ",my_queue.qsize())
+					#print (tt1,tt2,tt3,tt4)
+					tt1 = tt2 = tt3 = tt4 = tt5 = tts = 0
+				run_count += 1
 
-for a in acc:
-    print(a)
+				if last_batch and my_queue.empty():
+					test_bool = True
+					for i in range(thread_num):
+						test_bool = (test_bool and data_loader[i]._thread_stop)
+					if test_bool:
+						break
+
+				tt_s = time.time()
+				test_batch = my_queue.get()
+				my_queue.task_done()
+				tt1  += time.time() - tt_s
+				tt_s = time.time()
+
+
+				if not last_batch:
+					last_batch = test_batch["last_batch"]
+				
+				
+				#ttt_s = time.time()
+				#for i in range(50):
+				#    pre_process_dlib(test_batch["img"])
+				#print(time.time() - ttt_s)
+				#print(test_batch["img"].shape, test_batch["img"].dtype)
+				#print(test_batch["img_test"].shape, test_batch["img_test"].dtype)
+				
+
+				
+				
+				#Num_img = len(test_batch["path_list"])
+				#test_batch["img"] = np.concatenate((test_batch["img"],test_batch["img"][:,:,::-1,:]),axis = 0) #img flip
+				imgs = pre_process(test_batch["img"])
+
+			   
+				
+				
+				if jitter_count:
+					N = len(test_batch["path_list"])
+					emb_np = np.ndarray(shape=[N,emb_dim],dtype = np.float32)
+					emb_np_temp = sess.run(output,feed_dict = {x:imgs})
+					for i in range(N):
+						emb_np[i] = np.mean(emb_np_temp[i*jitter_count: (i+1)*jitter_count],axis = 0)
+					
+				else:
+					emb_np = sess.run(output,feed_dict = {x:imgs})
+
+
+				Total_Pred[start:start+emb_np.shape[0]] = emb_np
+				Total_label[start:start+emb_np.shape[0]] = test_batch["label"]
+				start += emb_np.shape[0]
+				tt3 += time.time() - tt_s
+				tt_s = time.time()
+				
+			   
+				#emb_add = emb_np[0:Num_img] + emb_np[Num_img:]
+				#emb_add = emb_add / np.linalg.norm(emb_add,axis = 1).reshape(-1,1)
+				
+				
+							
+
+				tt4 += time.time() - tt_s
+				tt_s = time.time()
+				
+				
+
+	print ("total_time= ", time.time()-t1)
+
+
+		
+	for i in range(thread_num):
+		data_loader[i]._thread_stop=True
+		data_loader[i].join()	
+		
+	acc,cnt,_ = Confusion_M(Total_Pred,Total_label)
+	print(Total_Pred.shape)
+	print(Total_label.shape)
+	average_acc = np.average(acc.diagonal())
+	print("average_accuracy: ",average_acc)
+	for a in cnt:
+		print(a)
+
+	for a in acc:
+		print(a)
 	
 	
 	

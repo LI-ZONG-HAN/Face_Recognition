@@ -7,6 +7,7 @@ import threading
 from queue import Queue
 import os
 import dlib
+import argparse
 
 def get_input (file_path):
     crop_width = 150
@@ -60,7 +61,7 @@ def load_path_lm_lists(data_dir,flie_name):
     return path_list,lm_list
 	
 class Data_Thread(threading.Thread):
-    def __init__(self, threadID, seed, path_list,lm_list, person_no, img_no_person, img_height,img_width,q):
+    def __init__(self, threadID, seed, path_list,lm_list, person_no, img_no_person, img_height,img_width,q,take_all):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.seed = int(seed)
@@ -78,6 +79,7 @@ class Data_Thread(threading.Thread):
         self._lm_list = lm_list
         self._total_id = len(self._path_list)
         self._padding = 0.25
+        self._take_all = take_all
        
     
     def _randomize(self, lists, seed):
@@ -100,8 +102,8 @@ class Data_Thread(threading.Thread):
             #print ("label_test",label)
             if (ii >= self._person_no):
                 break
-            
-            if self._path_list[label].shape[0] < 2:
+
+            if (not self._take_all) and self._path_list[label].shape[0] < 2:
                 #print ("person_id = %d need more image" %(label))
                 continue
             
@@ -291,46 +293,57 @@ def Diff_person_eval(labels, pairwise_dist):
     return anchor_negative_dist
 
 def main():
-    tf.reset_default_graph()
-    not_dlib = True
-    emb_dim = 512
-    my_queue = Queue(maxsize=100)
-    if not_dlib:
-        model_path = "Model/05-14_19-08/frozen_model.pb"
-        g2 = load_graph(model_path)
-        print (model_path)
-    else:
-        model_path = "dlib_face_recognition_resnet_model_v1_dynamic_batch.pb"
-        g2 = load_graph(model_path)
-        print (model_path)
-    #Dataset_dir = "Data/LFW"
-    #Dataset_dir = "Data/Geo_test_set/Geo_Test_set"
-    #Dataset_dir = "1217"
-    #Dataset_dir = "training\\west-valid"
-    #path_lists = load_path_lists(Dataset_dir)
     
-    data_dir = "training/FR_original_data"
-    file_name = "West_valid"
-    valid_path,valid_lm = load_path_lm_lists(data_dir,file_name)
-    #data_dir = "training"
-    #file_name = "west_training"
-    #valid_path2,valid_lm2 = load_path_lm_lists(data_dir,file_name)
-    #valid_path = np.concatenate((valid_path, valid_path2), axis=0)
-    #valid_lm = np.concatenate((valid_lm, valid_lm2), axis=0)
+    parser = argparse.ArgumentParser(description = 'Eval FR model')
+    parser.add_argument('eval_datasets', type=int, help='pls chose one of 6 datasets, 0:LFW, 1:asian_train, 2:asian_valid, 3:west_train, 4:west_valid, 5:Geo_test')
+    parser.add_argument('-model', required=True, type=str, help='Path to trained FR model')
+    parser.add_argument('-w', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
+    parser.add_argument('-dim', '--Embedding_Dims', type=int, default = 512, help='(optional) imgage_width Default: 512')
+    args = parser.parse_args()
+    task = ["LFW","asian_valid","asian_asianing", "West_valid", "West_training", "Geo_test"]
+    _info = {}
+    _info[task[0]] = {"path":"Data/LFW","load_type":0, "IDs_C":1500, "C_per_ID":2,"take_all":0}
+    _info[task[1]] = {"dir":"training/FR_original_data","file":"asian_valid","load_type":1, "IDs_C":500, "C_per_ID":2,"take_all":0}
+    _info[task[2]] = {"dir":"training/FR_original_data","file":"asian_training","load_type":1, "IDs_C":1000, "C_per_ID":2,"take_all":0}
+    _info[task[3]] = {"dir":"training/FR_original_data","file":"West_valid","load_type":1, "IDs_C":500, "C_per_ID":2,"take_all":0}
+    _info[task[4]] = {"dir":"training/FR_original_data","file":"West_training","load_type":1, "IDs_C":1000, "C_per_ID":2,"take_all":0}
+    _info[task[5]] = {"path":"Data/Geo_test_set/Geo_Test_set","load_type":0, "IDs_C":900, "C_per_ID":30,"take_all":1}
+    if args.eval_datasets < 0 or args.eval_datasets > 5 :
+        print("eval_datasets pls chose 0~5")
+        return
+    
+    eval_item = task[args.eval_datasets]
+    model_path = args.model
+    Img_W = args.imgage_width
+    Img_H = Img_W
+    emb_dim = args.Embedding_Dims
+    print("{:15}{}".format("eval_item",eval_item))
+    print("{:15}{}".format("model_path",model_path))
+    print("{:15}{}".format("image_width",Img_W))
+    print("{:15}{}".format("emb_dim",emb_dim))
+    for k,v in _info[eval_item].items():
+        print("{:15}{}".format(k,v))
+
+    tf.reset_default_graph()
+    my_queue = Queue(maxsize=100)
+    g2 = load_graph(model_path)
+    data_thread1 = None
+    if (_info[eval_item]["load_type"] == 0):
+        path_lists = load_path_lists(_info[eval_item]["path"])
+        data_thread1 = Data_Thread(1,time.time(), path_lists, [] ,_info[eval_item]["IDs_C"],_info[eval_item]["C_per_ID"],Img_H,Img_W,my_queue,_info[eval_item]["take_all"])
+    else:
+        valid_path,valid_lm = load_path_lm_lists(_info[eval_item]["dir"],_info[eval_item]["file"])
+        data_thread1 = Data_Thread(1,time.time(), valid_path, valid_lm ,_info[eval_item]["IDs_C"],_info[eval_item]["C_per_ID"],Img_H,Img_W,my_queue,_info[eval_item]["take_all"])
 	
     print ("load list finished")
-    if not_dlib:
-        data_thread1 = Data_Thread(1,time.time(), valid_path, valid_lm ,500,2,112,112,my_queue)
-    else:
-        data_thread1 = Data_Thread(1,time.time(), valid_path, valid_lm,500,2,150,150,my_queue)
-    for i in range(5):
+    loop = 5
+    if eval_item == "Geo_test":
+        loop = 1
+    for i in range(loop):
         input_batch = data_thread1.get_data()
         print ("batch load finished")	
         print (input_batch["img"].shape)
-        if not_dlib:
-            res, emb_np = inference_img(g2,input_batch, emb_dim) 
-        else:
-            res, emb_np = inference_img_dlib(g2,input_batch, emb_dim) 
+        res, emb_np = inference_img(g2,input_batch, emb_dim) 
         #print(emb_np)
         #print (np.mean(np.linalg.norm(emb_np,axis = 1)))
         Same = np.triu(res["Same"],1).flatten()
@@ -345,17 +358,30 @@ def main():
         Total_Diff_count = Diff.shape[0]
         Diff_mean = np.mean(Diff)
         Diff_std = np.std(Diff,ddof=1)
-        if not_dlib:
-            threshold = 1.22
-        else:
-            threshold = 0.55
-        Same_right_count = Same[Same<threshold].shape[0]
-        Diff_right_count = Diff[Diff>=threshold].shape[0]
+        thresholds = np.arange(0.4,1.8,0.01)
+        acc_max = -1
+        thres_max = -1
+        t1 = time.time()
+        for thres in thresholds:
+            Same_right_count = Same[Same<thres.tolist()].shape[0]
+            Diff_right_count = Diff[Diff>=thres.tolist()].shape[0]
+            acc_T = Same_right_count/Total_Same_count*100
+            acc_N = Diff_right_count/Total_Diff_count*100
+            acc = (acc_T+acc_N)*0.5
+            #print(acc,thres.tolist())
+            if acc_max < acc:
+                acc_max = acc
+                thres_max = thres.tolist()
+        print("time= ",time.time() - t1)
+        #threshold = 1.22
+        Same_right_count = Same[Same<thres_max].shape[0]
+        Diff_right_count = Diff[Diff>=thres_max].shape[0]
         print ("Total_same_count:{:4d}, mean_dist{:6.3f}, std{:6.3f}".format(Total_Same_count,Same_mean,Same_std))
         print ("Total_Diff_count:{:4d}, mean_dist{:6.3f}, std{:6.3f}".format(Total_Diff_count,Diff_mean,Diff_std))
         print ("Gap:{:6.3f}".format((Diff_mean-Same_mean)/Diff_std))
         print ("Same_accuracy:{:6.2f}".format( Same_right_count/Total_Same_count*100 ))
         print ("Diff_accuracy:{:6.2f}".format( Diff_right_count/Total_Diff_count*100 ))
+        print ("threshold:{:6.2f}".format(thres_max))
 	
     
 	

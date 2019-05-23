@@ -7,6 +7,7 @@ import threading
 from queue import Queue
 import os
 import dlib
+import argparse
 
 def get_input (file_path):
     crop_width = 150
@@ -252,21 +253,45 @@ def inference_img(graph,input_batch,dim):
             
             return sofemax_np
 
+			
+parser = argparse.ArgumentParser(description = 'eval gender MS_Celeb_1M')
+parser.add_argument('-out_dir', required=True, type=str, help='output_floder')
+parser.add_argument('-model', '--load_model_path', required=True, type=str, default = None, help='(optional) pre-trained model to be load')
+parser.add_argument('-int_dir', '--eval_path', type=str, default = "Data/MS-Celeb-1M", help='(optional) MS-Celeb-1M path')
+parser.add_argument('-img_w', '--imgage_width', type=int, default = 224, help='(optional) imgage_width Default: 224')
+parser.add_argument('-s', '--test_size', type=int, default = 20000, help='(optional) number of eval images Default: 20000')
+parser.add_argument('-fr_dim', '--FR_Emb_Dim', type=int, default = 512, help='(optional) FR_Embedding_Dims Default: 512')
+args = parser.parse_args()	
+
+
+
+emb_dim = args.FR_Emb_Dim
+model_path = args.load_model_path
+img_W = args.imgage_width
+img_H = img_W
+source_dir = args.eval_path
+out_dir = args.out_dir
+test_size =args.test_size
+print("{:15}{}".format("source_dir",source_dir))
+print("{:15}{}".format("out_dir",out_dir))
+print("{:15}{}".format("model_path",model_path))
+print("{:15}{}".format("image_width",img_W))
+print("{:15}{}".format("emb_dim",emb_dim))
 
 tf.reset_default_graph()
 
-emb_dim = 512
+#emb_dim = 512
 index = 0
 FD_Lost_c = 0
 detect_c = 0
 
 g_Lock = threading.Lock()
 
-source_dir = "Data/MS-Celeb-1M"
+#source_dir = "Data/MS-Celeb-1M"
 file = "FaceImageCroppedWithAlignment_name_list.txt"
 
 lists = load_path_lists_no_label(source_dir,file)
-test_size = 500
+#test_size = 1000
 print(lists.shape)
 permutation = np.random.RandomState().permutation(lists.shape[0])
 path_list = lists[permutation[0:test_size]]
@@ -276,15 +301,15 @@ print(path_list.shape)
 my_queue = Queue(maxsize=100)
 batch_size = 20
 thread_num = 5
-img_H = 224
-img_W = 224
+#img_H = 224
+#img_W = 224
 jitter_count = 0
 
-model_path = "Model\\03-07_15-04\\frozen_model_valid.pb"
+#model_path = "Model/#38_03-12_11-21/frozen_model_valid.pb"
 print (model_path)
 g2 = load_graph(model_path)
 
-target_dir = "Data/MS-Celeb-1M/test4"
+target_dir = os.path.join(source_dir,out_dir)#"Data/MS-Celeb-1M/test3"
 if not os.path.exists(target_dir):
     os.makedirs(target_dir)
 if not os.path.exists(os.path.join(target_dir,"Female")):

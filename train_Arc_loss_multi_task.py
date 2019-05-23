@@ -13,6 +13,7 @@ slim = tf.contrib.slim
 
 import io
 import random
+import argparse
 
 
 def _log_trainable_variables():
@@ -628,11 +629,68 @@ class PeriodicSaver(object):
         self._saver.save(self.session, self._save_path+"/graph.chkp", global_step=global_step)
         
 def main():
-    
-	
-    
-    Img_W = 112
-    Img_H = 112
+
+
+    parser = argparse.ArgumentParser(description = 'Runs the FR & Gender & Age training process')
+    parser.add_argument('training_item', type=str, help='pls chose one of 3 training item FR, Gender, Age"')
+    parser.add_argument('-train_sets', required=True, type=str, nargs='+', help='Path to training set list Ex. FR_west_training FR_asian_training')
+    parser.add_argument('-valid_sets', required=True, type=str, nargs='+', help='Path to training set list Ex. FR_west_valid FR_asian_valid')
+    parser.add_argument('-img_h', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
+    parser.add_argument('-w_s', '--weight_decay_share', type=float, default = 0.0005, help='(optional) weight_decay_share Default: 0.0005')
+    parser.add_argument('-w_f', '--weight_decay_FR', type=float, default = 0.0005, help='(optional) weight_decay_FR Default: 0.0005')
+    parser.add_argument('-w_g', '--weight_decay_Gender', type=float, default = 0.0005, help='(optional) weight_decay_Gender Default: 0.0005')
+    parser.add_argument('-w_a', '--weight_decay_Age', type=float, default = 0.0005, help='(optional) weight_decay_Age Default: 0.0005')
+    parser.add_argument('-fr_dim', '--FR_Emb_Dim', type=int, default = 512, help='(optional) FR_Embedding_Dims Default: 512')
+    parser.add_argument('-g_lays', '--Gender_hinden_layers_dims', type=int, default = [512], nargs='+', help='(optional) Gender_hinden_layers_dims Default: [512]')
+    parser.add_argument('-a_lays', '--Age_hinden_layers_dims', type=int, default = [512,512], nargs='+', help='(optional) Age_hinden_layers_dims Default: [512,512]')
+    parser.add_argument('-lr', '--initial_lr', type=float, default = [1e-3,1e-3,1e-3], nargs='+', help='(optional) initial_lr [FR,Gender,Age] Default: [1e-3,1e-3,1e-3]')
+    parser.add_argument('-s', '--step_without_progress_thresh', type=int, default = 15000, help='(optional) _step_without_progress_thresh Default: 15000')
+    parser.add_argument('-is_s_t', '--is_share_layers_training', type=str, default = "True", help='(optional) is_share_layers_training Default: True')
+    parser.add_argument('-model', '--load_model_path', type=str, default = None, help='(optional) pre-trained model to be load')
+    args = parser.parse_args()
+     
+    task = ["FR","Gender","Age"]
+    training_item = task.index(args.training_item) if (args.training_item in task) else -1
+    if (training_item < 0):
+        print("training_item not found in task, task = [\"FR\",\"Gender\",\"Age\"]")
+        return
+    bool_list = {"True": True, "False": False}
+    if not args.is_share_layers_training in bool_list.keys():
+        print("is_s_t typeing error, pls type True or False")
+        return
+
+    train_sets = args.train_sets
+    valid_sets = args.valid_sets
+    hyper_para = {}
+    hyper_para["weight_decay_share"] = args.weight_decay_share
+    hyper_para["weight_decay"] = [args.weight_decay_FR, args.weight_decay_Gender, args.weight_decay_Age]
+    hyper_para["imgage_width"] = args.imgage_width
+    Img_W = args.imgage_width
+    Img_H = args.imgage_width
+    hyper_para["FR_Emb_Dim"] = args.FR_Emb_Dim
+    hyper_para["Gender_hinden_layers_dims"] = args.Gender_hinden_layers_dims
+    hyper_para["Age_hinden_layers_dims"] = args.Age_hinden_layers_dims
+    hyper_para["initial_lr"] = args.initial_lr
+    hyper_para["step_without_progress_thresh"] = args.step_without_progress_thresh
+    hyper_para["is_share_layers_training"] = bool_list[args.is_share_layers_training]
+    saved_file_path = args.load_model_path
+
+    print("------------hyper_parameter------")
+    print(task[training_item])
+    print(train_sets)
+    print(valid_sets)
+    print("is_share_layers_training= ",hyper_para["is_share_layers_training"])
+    print("img_width= ",hyper_para["imgage_width"])
+    print("weight_decay_share= ",hyper_para["weight_decay_share"])
+    print("weight_decay [FR, Gender, Age] ",hyper_para["weight_decay"])
+    print("FR_Embedding_Dims= ",hyper_para["FR_Emb_Dim"])
+    print("Gender_hinden_layers_dims= ",hyper_para["Gender_hinden_layers_dims"])
+    print("Age_hinden_layers_dims= ",hyper_para["Age_hinden_layers_dims"])
+    print("initial_lr: ",hyper_para["initial_lr"])
+    print("step_without_progress_thresh= ",hyper_para["step_without_progress_thresh"])
+    print("Model to be loaded: ",saved_file_path)
+    print("----------------------------------------")	
+
     tf.reset_default_graph()
     g1 = tf.Graph()
     with g1.as_default() :
@@ -647,104 +705,101 @@ def main():
         
         log_period_secs = 50
         logger = Logger(wid, exp_dir+"\log.txt", log_period_secs)
-        FR_queue = Queue(maxsize=100)
-        Gender_queue = Queue(maxsize=100)
-        Age_queue = Queue(maxsize=100)
-        	
-        Gender_train_sets = ["gender_training"]
-        Gender_data_dir = "training/gender_data"
-        Gender_f_bin_path_train , Gender_indexs_train, Gender_f_bin_idx_train = reformat(Gender_data_dir,Gender_train_sets,True)
+        #FR_queue = Queue(maxsize=100)
+        #Gender_queue = Queue(maxsize=100)
+        #Age_queue = Queue(maxsize=100)
+        queue = Queue(maxsize=100)
+        data_dir = "training"
+        data_loader = []
+        thread_num = 16
+        FR_IDs = 86376  #west
+        #FR_IDs = 93479  #asian
+        #FR_IDs = 93479+86373 #west+asian
 
-        Gender_valid_sets = ["gender_valid","gender_test"]
-        Gender_f_bin_path_valid , Gender_indexs_valid, Gender_f_bin_idx_valid = reformat(Gender_data_dir,Gender_valid_sets,True)
+        if (task[training_item] == "Gender"):
+            #Gender_train_sets = ["gender_training"]
+            #Gender_data_dir = "training"
+            Gender_f_bin_path_train , Gender_indexs_train, Gender_f_bin_idx_train = reformat(data_dir,train_sets,True)
+            #Gender_valid_sets = ["gender_valid","gender_test"]
+            Gender_f_bin_path_valid , Gender_indexs_valid, Gender_f_bin_idx_valid = reformat(data_dir,valid_sets,True)
        
 			
-        train_IDs = len(Gender_indexs_train)
-        valid_IDs = len(Gender_indexs_valid)
+            train_IDs = len(Gender_indexs_train)
+            valid_IDs = len(Gender_indexs_valid)
         
-        print ("train_num: ", train_IDs)
-        print ("valid_num: ", valid_IDs)
-        print(Gender_indexs_train[0].shape)
+            print ("train_num: ", train_IDs)
+            print ("valid_num: ", valid_IDs)
+            print(Gender_indexs_train[0].shape)
         
+
+            for i in range(thread_num):
+                data_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,Gender_indexs_train,Gender_f_bin_path_train,Gender_f_bin_idx_train,2,75,Img_H,Img_W,"Gender",queue))
+                data_loader[i].start()
+        
+            Gender_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,Gender_indexs_valid,Gender_f_bin_path_valid,Gender_f_bin_idx_valid,2,250,Img_H,Img_W,"Gender",queue)
+            Gender_valid_env.open_bin()
+            valid_data = Gender_valid_env.get_data()
+            Gender_valid_env.close_bin()
+            del Gender_valid_env
+            print(valid_data["img"].shape)
+
+        elif (task[training_item] == "Age"):
+            #Age_train_sets = ["age_training_2"]
+            #Age_data_dir = "training"
+            Age_f_bin_path_train , Age_indexs_train, Age_f_bin_idx_train = reformat(data_dir,train_sets,True)
+            #Age_valid_sets = ["age_valid_2"]
+            Age_f_bin_path_valid , Age_indexs_valid, Age_f_bin_idx_valid = reformat(data_dir,valid_sets,True)
+        
+            train_IDs = len(Age_indexs_train)
+            valid_IDs = len(Age_indexs_valid)
 		
-        thread_num_Gender = 0
-        Gender_loader = []
-        for i in range(thread_num_Gender):
-            Gender_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,Gender_indexs_train,Gender_f_bin_path_train,Gender_f_bin_idx_train,2,32,Img_H,Img_W,"Gender",Gender_queue))
-            Gender_loader[i].start()
-        
-        #Gender_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,Gender_indexs_valid,Gender_f_bin_path_valid,Gender_f_bin_idx_valid,2,100,Img_H,Img_W,"Gender",FR_queue)
-        #Gender_valid_env.open_bin()
-        #Gender_valid_data = Gender_valid_env.get_data()
-        #Gender_valid_env.close_bin()
-        #del Gender_valid_env
-        #print(Gender_valid_data["img"].shape)
+            print ("train_num: ", train_IDs)
+            print ("valid_num: ", valid_IDs)
 
+            for i in range(thread_num):
+                data_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,Age_indexs_train,Age_f_bin_path_train,Age_f_bin_idx_train,7,20,Img_H,Img_W,"Age",queue))
+                data_loader[i].start()
         
-        Age_train_sets = ["age_training_2"]
-        Age_data_dir = "training/age_data"
-        Age_f_bin_path_train , Age_indexs_train, Age_f_bin_idx_train = reformat(Age_data_dir,Age_train_sets,True)
+            Age_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,Age_indexs_valid,Age_f_bin_path_valid,Age_f_bin_idx_valid,7,100,Img_H,Img_W,"Age",queue)
+            Age_valid_env.open_bin()
+            valid_data = Age_valid_env.get_data()
+            Age_valid_env.close_bin()
+            del Age_valid_env
+            print(valid_data["img"].shape)
+        elif (task[training_item] == "FR"):
+            #FR_train_sets = ["FR_west_training"]
+            #FR_data_dir = "training"
+            FR_f_bin_path_train , FR_indexs_train, FR_f_bin_idx_train = reformat(data_dir,train_sets,False)
+            #FR_valid_sets = ["FR_west_valid"]
+            FR_f_bin_path_valid , FR_indexs_valid, FR_f_bin_idx_valid = reformat(data_dir,valid_sets,False)
         
-        Age_valid_sets = ["age_valid_2"]
-        Age_f_bin_path_valid , Age_indexs_valid, Age_f_bin_idx_valid = reformat(Age_data_dir,Age_valid_sets,True)
-        
-        train_IDs = len(Age_indexs_train)
-        valid_IDs = len(Age_indexs_valid)
-		
-        print ("train_num: ", train_IDs)
-        print ("valid_num: ", valid_IDs)
+            train_IDs = len(FR_indexs_train)
+            valid_IDs = len(FR_indexs_valid)
+            FR_IDs = train_IDs
+            print ("train_num: ", train_IDs)
+            print ("valid_num: ", valid_IDs)
+            print(FR_indexs_train[0].shape)
 
+            for i in range(thread_num):
+                data_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,FR_indexs_train,FR_f_bin_path_train,FR_f_bin_idx_train,30,5,Img_H,Img_W,"FR",queue))
+                data_loader[i].start()
         
-        thread_num_Age = 0
-        Age_loader = []
-        for i in range(thread_num_Age):
-            Age_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,Age_indexs_train,Age_f_bin_path_train,Age_f_bin_idx_train,7,10,Img_H,Img_W,"Age",Age_queue))
-            Age_loader[i].start()
-        
-        #Age_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,Age_indexs_valid,Age_f_bin_path_valid,Age_f_bin_idx_valid,7,100,Img_H,Img_W,"Age",FR_queue)
-        #Age_valid_env.open_bin()
-        #Age_valid_data = Age_valid_env.get_data()
-        #Age_valid_env.close_bin()
-        #del Age_valid_env
-        #print(Age_valid_data["img"].shape)
+            FR_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,FR_indexs_valid,FR_f_bin_path_valid,FR_f_bin_idx_valid,300,2,Img_H,Img_W,"FR",queue)
+            FR_valid_env.open_bin()
+            valid_data = FR_valid_env.get_data()
+            FR_valid_env.close_bin()
+            del FR_valid_env
+            print("FR_valid ",valid_data["img"].shape)
+        else:
+            print("training_item error")
+            return
 
-        FR_train_sets = ["FR_west_training"]
-        FR_data_dir = "training"
-        FR_f_bin_path_train , FR_indexs_train, FR_f_bin_idx_train = reformat(FR_data_dir,FR_train_sets,False)
-              
-        FR_valid_sets = ["FR_west_valid","FR_asian_valid"]
-        FR_f_bin_path_valid , FR_indexs_valid, FR_f_bin_idx_valid = reformat(FR_data_dir,FR_valid_sets,False)
+        #train_batch = {"img":np.ndarray(shape=[10,Img_H,Img_W,3])}
         
-        train_IDs = len(FR_indexs_train)
-        valid_IDs = len(FR_indexs_valid)
-        
-		
-        print ("train_num: ", train_IDs)
-        print ("valid_num: ", valid_IDs)
-        print(FR_indexs_train[0].shape)
+        net = ArcFace.Res50_Arc_loss(hyper_para,FR_IDs,g1)
+        #task = net._task
 
-        FR_thread_num = 16
-        data_loader = []
-        label_shift = 0
-        for i in range(FR_thread_num):
-            data_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,FR_indexs_train,FR_f_bin_path_train,FR_f_bin_idx_train,30,5,Img_H,Img_W,"FR",FR_queue,label_shift))
-            data_loader[i].start()
-        
-        FR_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,FR_indexs_valid,FR_f_bin_path_valid,FR_f_bin_idx_valid,300,2,Img_H,Img_W,"FR",FR_queue)
-        FR_valid_env.open_bin()
-        FR_valid_data = FR_valid_env.get_data()
-        FR_valid_env.close_bin()
-        del FR_valid_env
-        print("FR_valid ",FR_valid_data["img"].shape)
-		
-
-        train_batch = {"img":np.ndarray(shape=[10,Img_H,Img_W,3])}
-        #train_batch = FR_queue.get()
-        #FR_queue.task_done()
-        net = ArcFace.Res50_Arc_loss(train_batch,train_IDs+label_shift,g1)
-        task = net._task
-
-        del train_batch
+        #del train_batch
         
         
         var_init_op = tf.global_variables_initializer()
@@ -753,7 +808,7 @@ def main():
         save_period_secs = 300
         saver = PeriodicSaver(cp_path, save_period_secs)
 		
-        saved_file_path = "Model/05-16_12-15/checkpoint"
+        #saved_file_path = "Model/05-16_12-15/checkpoint"
         #saved_file_path= None
         with tf.Session(config=net._config) as sess:
             net.session = sess
@@ -778,63 +833,35 @@ def main():
             eval_valid_secs = 200
             valid_save_path = exp_dir+"/eval_cp/a"
             train_save_path = ""
-            evaluator_FR = Evaluator_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
-            evaluator_Gender = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
-            evaluator_Age = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
+            evaluator = {}
+            evaluator[task[0]] = Evaluator_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
+            evaluator[task[1]] = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
+            evaluator[task[2]] = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
+            #evaluator_FR = Evaluator_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
+            #evaluator_Gender = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
+            #evaluator_Age = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
             saver.session = sess
             print ("start_training")
-            count = 0
+
             #sess.run(tf.assign(net._lr_rate[task[0]],1e-7))
-            sess.run(tf.assign(net._lr_rate[task[1]],1e-7))
-            sess.run(tf.assign(net._lr_rate[task[2]],1e-7))
+            sess.run(tf.assign(net._lr_rate[task[1]],1e-3))
+            sess.run(tf.assign(net._lr_rate[task[2]],1e-3))
             #sess.run(tf.assign(net._step_cnt_op,0))
             training_stop = False
-            while (not training_stop):
-                if (count%1600 == 0):
-                    print("FR_queue.size{:3d}, Gender_queue.size{:3d}, Age_queue.size{:3d},".format(FR_queue.qsize(),Gender_queue.qsize(), Age_queue.qsize()))
+            while net._lr_rate[task[training_item]].eval() >= 1e-6:
+                if (net._step_cnt_op.eval()%800 == 0):
+                    print("{}_queue.size{:3d},".format(task[training_item],queue.qsize()))
 
-                count += 1
-                if count%3 == 0 and net._lr_rate[task[0]].eval() >= 1e-6:
-                    train_batch = FR_queue.get()
-                    FR_queue.task_done()
-                    evaluator_FR.train_eval(train_batch,task[0])
-                    net.train_one_step(train_batch,task[0])
-                    evaluator_FR.valid_eval(FR_valid_data,task[0])
-                    logger.log(net.step_cnt())
-                    logger._vals.clear()
+                train_batch = queue.get()
+                queue.task_done()
+                evaluator[task[training_item]].train_eval(train_batch,task[training_item])
+                net.train_one_step(train_batch,task[training_item])
+                evaluator[task[training_item]].valid_eval(valid_data,task[training_item])
                 
-                elif count%3 == 1 and net._lr_rate[task[1]].eval() >= 1e-6:
-                    #print(task[1]+"_L2_loss: ",net._l2_loss[task[1]].eval())
-                    train_batch = Gender_queue.get()
-                    Gender_queue.task_done()
-                    #t1 = time.time()
-                    evaluator_Gender.train_eval(train_batch,task[1])
-                    net.train_one_step(train_batch,task[1])
-                    evaluator_Gender.valid_eval(Gender_valid_data,task[1])
-                    #sum_time_2 += time.time() - t1
-                    logger.log(net.step_cnt())
-                    logger._vals.clear()
+                logger.log(net.step_cnt())
+                logger._vals.clear()
+                saver.save(net.step_cnt())
 				
-                elif count%3 == 2 and net._lr_rate[task[2]].eval() >= 1e-6:
-                    #print(task[2]+"_L2_loss: ",net._l2_loss[task[2]].eval())
-                    train_batch = Age_queue.get()
-                    Age_queue.task_done()
-                    #t1 = time.time()
-                    evaluator_Age.train_eval(train_batch,task[2])
-                    net.train_one_step(train_batch,task[2])
-                    evaluator_Age.valid_eval(Age_valid_data,task[2])
-                    #sum_time_2 += time.time() - t1
-                    logger.log(net.step_cnt())
-                    logger._vals.clear()
-                else:
-                    continue
-                
-                saver.save(net.step_cnt())			
-                training_stop = True
-                for key in task:
-                    if net._lr_rate[key].eval() >= 1e-6:
-                        training_stop = False        
-					
             model_path = exp_dir+"/frozen_model.pb"
             net.freeze_deploy_graph(model_path)
             if valid_save_path != "":
@@ -846,33 +873,16 @@ def main():
                 model_path = exp_dir+"/frozen_model_valid.pb"
                 net.freeze_deploy_graph(model_path)
                 
-            for i in range(FR_thread_num):
+            for i in range(thread_num):
                 data_loader[i]._thread_stop=True
                 data_loader[i].join()
-            for i in range(thread_num_Gender):
-                Gender_loader[i]._thread_stop=True
-                Gender_loader[i].join()				
-            for i in range(thread_num_Age):
-                Age_loader[i]._thread_stop=True
-                Age_loader[i].join()
-				
-				
-            
-            while not FR_queue.empty():
-                FR_queue.get()
-                FR_queue.task_done() 
-            FR_queue.join()
-			
-            while not Gender_queue.empty():
-                Gender_queue.get()
-                Gender_queue.task_done() 
-            Gender_queue.join()
-			
-            while not Age_queue.empty():
-                Age_queue.get()
-                Age_queue.task_done() 
-            Age_queue.join()
 
+				     
+            while not queue.empty():
+                queue.get()
+                queue.task_done() 
+            queue.join()
+			
             print ('exiting main thread')
         
             
