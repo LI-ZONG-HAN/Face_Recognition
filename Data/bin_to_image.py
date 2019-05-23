@@ -2,7 +2,7 @@ from PIL import Image
 import os
 import numpy as np
 import io
-
+import argparse
 
 
 	
@@ -37,22 +37,33 @@ def load_index_lists(data_dir,flie_name):
     
         
 def main():
+
+    parser = argparse.ArgumentParser(description = 'Make img data to binary')
+    parser.add_argument('-in_dir', required=True, type=str, help='Path to source floder')
+    parser.add_argument('-bin_name', required=True, nargs='+', type=str, help='bin_name')
+    parser.add_argument('-out_dir', required=True, type=str, help='(optional) target_floder')
+    #parser.add_argument('-w', '--imgage_width', type=int, default = 224, help='(optional) imgage_width Default: 224')
+    #parser.add_argument('-p', '--padding_ratio', type=float, default = 0.25, help='(optional) padding_ratio Default: 0.25')
+    args = parser.parse_args()
     
-    train_sets = ["FR_asian_valid","FR_west_valid"]
+    #train_sets = ["FR_asian_valid","FR_west_valid"]
+    Data_sets = args.bin_name
     label_shift = 0
     FR_f_bin_path_train = []
     FR_indexs_train = []
     FR_paths = []
-    FR_data_dir = "training"
-    for name in train_sets:
-        FR_file_name = name+".idx"
+    #FR_data_dir = "training"
+    Data_dir = args.in_dir
+    target_dir = args.out_dir
+    for name in Data_sets:
+        file_name = name+".idx"
         print(name)
-        FR_f_bin_path_train.append(os.path.join(FR_data_dir,name+".bin"))
-        _,_,paths_temp,indexs_temp,_ = load_index_lists(FR_data_dir,FR_file_name)
+        FR_f_bin_path_train.append(os.path.join(Data_dir,name+".bin"))
+        _,_,paths_temp,indexs_temp,_ = load_index_lists(Data_dir,file_name)
         FR_indexs_train.append(indexs_temp)
         FR_paths.append(paths_temp)
 		
-    target_dir = "training/temp"
+    #target_dir = "training/temp"
     count = 0
     for i, paths in enumerate(FR_paths):
         f_bin = open(FR_f_bin_path_train[i],"rb")

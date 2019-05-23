@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from PIL import Image
-from Net import triplet_loss as triplet
+#from Net import triplet_loss as triplet
 import time
 import threading
 from queue import Queue
@@ -10,6 +10,7 @@ import dlib
 
 from sys import getsizeof
 import io
+import argparse
 
 """
 def write_to_bin(f_bin,f_inx,img_path):
@@ -28,7 +29,7 @@ def write_to_bin(f_bin,f_inx,img_path,img_label,img_bytes):
 def load_path_lists(data_dir):
     lists = os.listdir(data_dir)
     lists = [os.path.join(data_dir,f) for f in lists]
-    print(lists)
+    #print(lists)
     lists = [f for f in lists if os.path.isdir(f)]
     results = []
     labels = []
@@ -41,7 +42,7 @@ def load_path_lists(data_dir):
     return np.array(results), np.array(labels, dtype = np.int32)
 	
 def load_path_lists_FR(data_dir,flie_name):
-    with open(os.path.join(data_dir,flie_name),"r") as f:
+    with open(os.path.join(data_dir,flie_name).replace("\\","/"),"r") as f:
         lines = f.readlines()
         lines = [f.strip() for f in lines]
         label_list = [f.strip().split(" ",1)[0].split("/")[1] for f in lines]		
@@ -71,7 +72,7 @@ def load_path_lists_FR(data_dir,flie_name):
     return path_list_by_id, lm_list_by_id, path_list, lm_list, labels
 	
 class Data_Thread(threading.Thread):
-    def __init__(self, threadID,batch_size, img_height,img_width,q):
+    def __init__(self, threadID,batch_size, img_height,img_width,padding,q):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.queue = q
@@ -81,8 +82,8 @@ class Data_Thread(threading.Thread):
         self._channels = 3
         self._thread_stop = False 
         self._detector = dlib.get_frontal_face_detector()
-        self._sp = dlib.shape_predictor("shape_predictor_5_face_landmarks.dat")
-        self._padding = 0.15
+        self._sp = dlib.shape_predictor("../shape_predictor_5_face_landmarks.dat")
+        self._padding = padding
         self.start_index = 0
         #self._jitter_count = jitter_count
       
@@ -250,137 +251,171 @@ class Data_Thread(threading.Thread):
 		
 tf.reset_default_graph()
 
-#data_dir = "training/age_data"
-#floder = "__age_valid_2"
-#train_paths, train_labels = load_path_lists(data_dir+"/"+floder)
-#train_lms = np.array([])
+parser = argparse.ArgumentParser(description = 'Make img data to binary')
+parser.add_argument('is_FR_dataset', type=str, help='is FR dataset?  True:FR False:other')
+parser.add_argument('-dir', required=True, type=str, help='Path to root floder')
+parser.add_argument('-f', '--file_name', required=True, type=str, help='Path to image floder or FR file')
+parser.add_argument('-out_name', '--output_name', type=str, default = "images", help='(optional) output_name Default: images')
+parser.add_argument('-w', '--imgage_width', type=int, default = 224, help='(optional) imgage_width Default: 224')
+parser.add_argument('-p', '--padding_ratio', type=float, default = 0.25, help='(optional) padding_ratio Default: 0.25')
+args = parser.parse_args()
 
 
 
-
-data_dir = "training/FR_original_data"
-FR_file_name = "West_training"
-_,_,train_paths,train_lms,train_labels = load_path_lists_FR(data_dir,FR_file_name)
-
-
-
-
-
-
-
-index = 0
-FD_Lost_c = 0
-detect_c = 0
-g_Lock = threading.Lock()
-
-print(train_paths[0])
-print(train_paths.shape)
-print(train_lms.shape)
-print(train_labels.shape)
-
-
-
-
-my_queue = Queue(maxsize=100)
-batch_size = 20
-thread_num = 1
-img_H = 224
-img_W = 224
-jitter_count = 0
-
-
-data_loader = []
-for i in range(thread_num):
-	data_loader.append(Data_Thread(i+1,batch_size, img_H,img_W, my_queue))
-	data_loader[i].start()
-
-    
-	
-    
-
-
-jitter_count = 0
-run_count = 0
-last_batch = False
-target_floder = data_dir
-bin_path = os.path.join(target_floder,"FR_west_training_pad_15.bin")
-idx_path = os.path.join(target_floder,"FR_west_training_pad_15.idx")
-
-
-while(1):
-    if run_count%50==0:
-        print ("batch_run= ",run_count," Index= ", index)
-				
-    run_count += 1
-
-    if last_batch and my_queue.empty():
-        test_bool = True
-        for i in range(thread_num):
-            test_bool = (test_bool and data_loader[i]._thread_stop)
-        if test_bool:
-            break
-
-	
-    test_batch = my_queue.get()
-    my_queue.task_done()
-    if not last_batch:
-        last_batch = test_batch["last_batch"]
+bool_list = {"True": True, "False": False}
+if not args.is_FR_dataset in bool_list.keys():
+    print("is_FR_dataset typeing error, pls type True or False")
+else:
+	data_type = bool_list[args.is_FR_dataset]
+	data_dir = args.dir
+	file_path = args.file_name
+	img_W = args.imgage_width
+	img_H = img_W
+	pad_ratio = args.padding_ratio
+	out_name = args.output_name
+	train_paths = None
+	train_lms = None
+	train_labels = None
+	if data_type:
+		#data_dir = "training/FR_original_data"
+		#FR_file_name = "West_training"
+		_,_,train_paths,train_lms,train_labels = load_path_lists_FR(data_dir,file_path)
+	else:
+		#data_dir = "training/age_data"
+		#floder = "__age_valid_2"
+		train_paths, train_labels = load_path_lists(data_dir+"/"+file_path)
+		train_lms = np.array([])
 		
-    count = 0
-    """
-    if jitter_count:
-        list_imgs =[]
-        for i in range(test_batch["img"].shape[0]):
-            print(count)
-            count += 1
-            list_imgs += dlib.jitter_image(np.uint8(test_batch["img"][i]), num_jitters=jitter_count, disturb_colors=True)
-        imgs = np.array(list_imgs,dtype = np.float32)
-    else:
-        imgs = test_batch["img"]
-    """    
-    imgs = test_batch["img"]    
-    """
-    if jitter_count:
-        for i,path in enumerate(test_batch["path_list"]):
-            file_name, ext = path.rsplit("\\",1)[-1].rsplit(".",1)
-            for j in range(jitter_count):
-                img_s= Image.fromarray(np.uint8(imgs[i*jitter_count + j]))
-                new_path = os.path.join(floder,file_name+"_"+str(j)+"."+ext)
-                print(new_path)
-                img_s.save(new_path)
-    else:
-        for i,path in enumerate(test_batch["path_list"]):
-            img_s= Image.fromarray(np.uint8(imgs[i]))
-            img_s.save(os.path.join(floder,path.rsplit("\\",1)[-1]))
-    """	
-    f_bin = open(bin_path,"ab")
-    f_inx = open(idx_path,"a")
-    for i,path in enumerate(test_batch["path_list"]):
-        #save_path = os.path.join(target,path.split("/",2)[-1])
-        save_path = path.split(data_dir)[-1].split("/",1)[-1]
-        label = test_batch["label"][i]
-        #print(save_path)
-        write_to_bin(f_bin,f_inx,save_path,label,imgs[i])
-
-        #if not os.path.exists(save_path.rsplit("/",1)[0]):
-        #    os.makedirs(save_path.rsplit("/",1)[0])
-        #try:
-        #    img_s= Image.fromarray(np.uint8(imgs[i]))
-        #    img_s.save(save_path)
-        #except:
-        #    print("Error: ",save_path)
-        
-    f_bin.close()
-    f_inx.close()
-            
-            
+		
+	#data_dir = "training/age_data"
+	#floder = "__age_valid_2"
+	#train_paths, train_labels = load_path_lists(data_dir+"/"+floder)
+	#train_lms = np.array([])
 
 
 
-    
-for i in range(thread_num):
-	data_loader[i]._thread_stop=True
-	data_loader[i].join()	
+
+	#data_dir = "training/FR_original_data"
+	#FR_file_name = "West_training"
+	#_,_,train_paths,train_lms,train_labels = load_path_lists_FR(data_dir,FR_file_name)
+
+
+
+
+
+
+
+	index = 0
+	FD_Lost_c = 0
+	detect_c = 0
+	g_Lock = threading.Lock()
+
+	#print(train_paths[0])
+	print(train_paths.shape)
+	print(train_lms.shape)
+	print(train_labels.shape)
+
+
+
+
+	my_queue = Queue(maxsize=100)
+	batch_size = 20
+	thread_num = 1
+	jitter_count = 0
+
+
+	data_loader = []
+	for i in range(thread_num):
+		data_loader.append(Data_Thread(i+1,batch_size, img_H, img_W, pad_ratio, my_queue))
+		data_loader[i].start()
+
+		
+		
+		
+
+
+	jitter_count = 0
+	run_count = 0
+	last_batch = False
+	target_floder = data_dir
+	bin_path = os.path.join(target_floder,out_name+".bin")#"FR_west_training_pad_15.bin")
+	idx_path = os.path.join(target_floder,out_name+".idx")#"FR_west_training_pad_15.idx")
+
+
+	while(1):
+		if run_count%50==0:
+			print ("batch_run= ",run_count," Index= ", index)
+					
+		run_count += 1
+
+		if last_batch and my_queue.empty():
+			test_bool = True
+			for i in range(thread_num):
+				test_bool = (test_bool and data_loader[i]._thread_stop)
+			if test_bool:
+				break
+
+		
+		test_batch = my_queue.get()
+		my_queue.task_done()
+		if not last_batch:
+			last_batch = test_batch["last_batch"]
+			
+		count = 0
+		"""
+		if jitter_count:
+			list_imgs =[]
+			for i in range(test_batch["img"].shape[0]):
+				print(count)
+				count += 1
+				list_imgs += dlib.jitter_image(np.uint8(test_batch["img"][i]), num_jitters=jitter_count, disturb_colors=True)
+			imgs = np.array(list_imgs,dtype = np.float32)
+		else:
+			imgs = test_batch["img"]
+		"""    
+		imgs = test_batch["img"]    
+		"""
+		if jitter_count:
+			for i,path in enumerate(test_batch["path_list"]):
+				file_name, ext = path.rsplit("\\",1)[-1].rsplit(".",1)
+				for j in range(jitter_count):
+					img_s= Image.fromarray(np.uint8(imgs[i*jitter_count + j]))
+					new_path = os.path.join(floder,file_name+"_"+str(j)+"."+ext)
+					print(new_path)
+					img_s.save(new_path)
+		else:
+			for i,path in enumerate(test_batch["path_list"]):
+				img_s= Image.fromarray(np.uint8(imgs[i]))
+				img_s.save(os.path.join(floder,path.rsplit("\\",1)[-1]))
+		"""	
+		f_bin = open(bin_path,"ab")
+		f_inx = open(idx_path,"a")
+		for i,path in enumerate(test_batch["path_list"]):
+			#save_path = os.path.join(target,path.split("/",2)[-1])
+			save_path = path.split(data_dir)[-1].split("/",1)[-1]
+			label = test_batch["label"][i]
+			#print(save_path)
+			write_to_bin(f_bin,f_inx,save_path,label,imgs[i])
+
+			#if not os.path.exists(save_path.rsplit("/",1)[0]):
+			#    os.makedirs(save_path.rsplit("/",1)[0])
+			#try:
+			#    img_s= Image.fromarray(np.uint8(imgs[i]))
+			#    img_s.save(save_path)
+			#except:
+			#    print("Error: ",save_path)
+			
+		f_bin.close()
+		f_inx.close()
+				
+				
+
+
+
+		
+	for i in range(thread_num):
+		data_loader[i]._thread_stop=True
+		data_loader[i].join()	
     
 
 	
