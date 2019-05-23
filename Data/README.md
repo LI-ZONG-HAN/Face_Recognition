@@ -2,12 +2,14 @@
 ## Why
 The older way i used is that load separate images in HD in each batch.It takes a long time at open each image files. Therefor i packed all image files in one big binary file and the position for each image in the bin file is recorded in the idx file. 
 ## How
+/
 
+'''
 top_level_directory/
         
         label1/
-        
-            image1.jpg
+            
+            image1.jpg            
             
             image2.jpg
             
@@ -28,6 +30,7 @@ top_level_directory/
             image8.jpg
             
             image9.jpg
+'''
 
 After data is packed.Two file will be created.
 
