@@ -4,10 +4,10 @@ The older way i used is that load separate images in HD in each batch.It takes a
 ## content
 After data is packed.Two file will be created.
 
-###bin
+### bin
 image data
 
-###idx
+### idx
 there four columes: original_file_path / label / start position in bin / end position in bin
 
 
