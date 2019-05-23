@@ -4,9 +4,11 @@ The older way i used is that load separate images in HD in each batch.It takes a
 ## content
 After data is packed.Two file will be created.
 
-bin: image data
+###bin
+image data
 
-idx: record original_file_path / label / start position in bin / end position in bin
+###idx
+there four columes: original_file_path / label / start position in bin / end position in bin
 
 
 ### Training Data
