@@ -25,12 +25,11 @@ Batch Size : 50
 
 Step 1: Put the packed binary format data in the floder named "training"
 
-Step 2: run train_Arc_loss_multi_task.py
+Step 2: run train_Arc_loss_multi_task.py. First argument is to chose FR or Gender or Age which is meaning which task you want to train.
+-train_sets and -valid_sets mean the training and valid binary file name (not including Extension)
 ```
 python train_Arc_loss_multi_task.py FR -train_sets bin_file_name -valid_sets bin_file_name
 ```
-bin-file-name not including Extension.
-
 If you want to see all arguments, pls typing
 ```
 python train_Arc_loss_multi_task.py -h
