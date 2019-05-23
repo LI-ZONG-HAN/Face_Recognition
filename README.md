@@ -28,6 +28,7 @@ Step 2: run train_Arc_loss_multi_task.py
 python train_Arc_loss_multi_task.py FR -train_sets bin_file_name -valid_sets bin_file_name
 ```
 bin-file-name not including Extension
+
 In the training process, trained model and training log will saved at "Model" floder
 
 It will create a floder named loss_debug to save the loss of each step.
