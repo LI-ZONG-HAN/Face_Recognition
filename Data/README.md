@@ -2,69 +2,59 @@
 ## Why
 The older way i used is that load separate images in HD in each batch.It takes a long time at open each image files. Therefor i packed all image files in one big binary file and the position for each image in the bin file is recorded in the idx file. 
 ## How
+### step 1
+The program will expect to be given a directory structured as follows:
+
+
+Case1 :Only for this FR case, with images files list table
 ```
-top_level_directory/
-        label1/            
-            image1.jpg
-            image2.jpg            
-            image3.jpg        
-        label2/            
-            image4.jpg            
-            image5.jpg            
-            image6.jpg        
-        label3/            
-            image7.jpg            
-            image8.jpg            
-            image9.jpg
+root floder/
+   image_floder/
+           label1/            
+               image1.jpg
+               image2.jpg            
+               image3.jpg        
+           label2/            
+               image4.jpg            
+               image5.jpg            
+               image6.jpg        
+           label3/            
+               image7.jpg            
+               image8.jpg            
+               image9.jpg
+           
+   FR_images_list_table
 ```
 
-After data is packed.Two file will be created.
-
-### bin
-image data
-
-### idx
-there four columes: original_file_path / label / start position in bin / end position in bin
-
-
-### Training Data
-Training data is downloaded from [Trillion Pairs](http://trillionpairs.deepglint.com/overview) (both MS-Celeb-1M-v1c and Asian-Celeb)
-
-All face images are aligned by [Dlib: 5-point landmark](http://blog.dlib.net/2017/09/fast-multiclass-object-detection-in.html) and and cropped to 224x224 and packed in binary format
-
-How to packed in binary format ? pls see Data floder
-
-### Train
-Environment : windows 10 + Python 3.5(installed by Anaconda) + Tensorflow 1.5.0 GPU version
-
-GPU : 1080Ti
-
-Batch Size : 50
-
-### How to run training
-
-Step 1: Put the packed binary format data in the floder named "training"
-
-Step 2: run train_Arc_loss_multi_task.py. First argument is to chose FR or Gender or Age which means which task you want to train.
--train_sets and -valid_sets mean the training and valid binary file name (not including Extension)
+Case2 : Without images files list table (Non_FR data)
 ```
-python train_Arc_loss_multi_task.py FR -train_sets bin_file_name -valid_sets bin_file_name
+root floder/
+   image_floder/
+           label1/            
+               image1.jpg
+               image2.jpg            
+               image3.jpg        
+           label2/            
+               image4.jpg            
+               image5.jpg            
+               image6.jpg        
+           label3/            
+               image7.jpg            
+               image8.jpg            
+               image9.jpg
 ```
-If you want to see all arguments, pls typing
+### step 2 : Run Make_data_to_bin.py
+pls type
 ```
-python train_Arc_loss_multi_task.py -h
+python Make_data_to_bin.py True -dir root_floder_path -f image_floder or FR_images_list_table -out_name bin_file_name
 ```
-In the training process, trained model and training log will saved at "Model" floder
+First argument True mean case1 and False mean case2
 
-It will create a floder named loss_debug to save the loss of each step.
+After program complete, two files bin and idx will be created in root_floder
 
-About learning rate decay.Instead of steps or polynomial decay, the learning rate will dacay automatically when loss stop improving.
-it will make the network trained better because you never know how many steps the training need before you train it. 
-[How to determine loss stop improving](http://blog.dlib.net/2018/02/automatic-learning-rate-scheduling-that.html)
+bin : image data
 
-## On going
-### Training with larger batch size
-Bigger batch size seems to make the network trained better
+idx : Four columns mean original_file_path/label/start position in bin/end position in bin 
 
-### Multi-task training 
-I plan to train three tasks which are FR, gender and age classification in the same network. They will share the resnet-50 network. I have finished the code. 
+
+
