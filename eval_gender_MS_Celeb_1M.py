@@ -258,7 +258,7 @@ parser = argparse.ArgumentParser(description = 'eval gender MS_Celeb_1M')
 parser.add_argument('-out_dir', required=True, type=str, help='output_floder')
 parser.add_argument('-model', '--load_model_path', required=True, type=str, default = None, help='(optional) pre-trained model to be load')
 parser.add_argument('-int_dir', '--eval_path', type=str, default = "Data/MS-Celeb-1M", help='(optional) MS-Celeb-1M path')
-parser.add_argument('-img_w', '--imgage_width', type=int, default = 224, help='(optional) imgage_width Default: 224')
+parser.add_argument('-img_w', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
 parser.add_argument('-s', '--test_size', type=int, default = 20000, help='(optional) number of eval images Default: 20000')
 parser.add_argument('-fr_dim', '--FR_Emb_Dim', type=int, default = 512, help='(optional) FR_Embedding_Dims Default: 512')
 args = parser.parse_args()	
@@ -277,6 +277,7 @@ print("{:15}{}".format("out_dir",out_dir))
 print("{:15}{}".format("model_path",model_path))
 print("{:15}{}".format("image_width",img_W))
 print("{:15}{}".format("emb_dim",emb_dim))
+print("{:15}{}".format("test_size",test_size))
 
 tf.reset_default_graph()
 
@@ -292,10 +293,10 @@ file = "FaceImageCroppedWithAlignment_name_list.txt"
 
 lists = load_path_lists_no_label(source_dir,file)
 #test_size = 1000
-print(lists.shape)
+#print(lists.shape)
 permutation = np.random.RandomState().permutation(lists.shape[0])
 path_list = lists[permutation[0:test_size]]
-print(path_list.shape)
+#print(path_list.shape)
 
 
 my_queue = Queue(maxsize=100)
@@ -306,7 +307,7 @@ thread_num = 5
 jitter_count = 0
 
 #model_path = "Model/#38_03-12_11-21/frozen_model_valid.pb"
-print (model_path)
+#print (model_path)
 g2 = load_graph(model_path)
 
 target_dir = os.path.join(source_dir,out_dir)#"Data/MS-Celeb-1M/test3"
@@ -375,7 +376,7 @@ while(1):
 """
 
 count = 0
-print ("total_img_no = ",len(path_list))
+#print ("total_img_no = ",len(path_list))
 last_batch = False
 tt1 = tt2 = tt3 = tt4 = tt5 = tts = 0
 t1 = time.time()
@@ -464,7 +465,7 @@ with g2.as_default() :
             
             
 
-print ("total_time= ", time.time()-t1)
+#print ("total_time= ", time.time()-t1)
 
 
     
