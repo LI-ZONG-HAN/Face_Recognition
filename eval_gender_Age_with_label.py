@@ -270,7 +270,7 @@ def Confusion_M(preds, labels):
 parser = argparse.ArgumentParser(description = 'eval gender Age with label')
 parser.add_argument('Gender_or_Age', type=str, help='pls type Gender or Age"')
 parser.add_argument('-dir', required=True, type=str, help='Path to floder of eval dataset')
-parser.add_argument('-model', '--load_model_path', required=True, type=str, default = None, help='(optional) pre-trained model to be load')
+parser.add_argument('-model', '--load_model_path', required=True, type=str, help='Path to trained FR model, type is tensorflow pb file')
 parser.add_argument('-img_w', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
 parser.add_argument('-fr_dim', '--FR_Emb_Dim', type=int, default = 512, help='(optional) FR_Embedding_Dims Default: 512')
 args = parser.parse_args()	
