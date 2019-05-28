@@ -80,9 +80,13 @@ eval_floder/
 ```
 The result will show the average accuracy over all labels and confusion matrix.
 
-## Eval gender on MS_Celeb_1M
+### Eval gender on MS_Celeb_1M
 "eval_gender_Age_with_label.py" is to evaulate labeled data_set. However the number of gender test data is too small.We sample and classify gender on a small group of images from MS_Celeb_1M which is not labeled and label the small group to get accuracy.
 
+```
+python eval_gender_MS_Celeb_1M.py -out_dir output_floder_name -model pb_file_path
+```
+-out_dir is the name of output floder which will create at Data/MS-Celeb-1M
 
 
 ## On going
