@@ -42,6 +42,44 @@ About learning rate decay.Instead of steps or polynomial decay, the learning rat
 it will make the network trained better because you never know how many steps the training need before you train it. 
 [How to determine loss stop improving](http://blog.dlib.net/2018/02/automatic-learning-rate-scheduling-that.html)
 
+### Evaluation
+
+## FR
+```
+python eval_FR.py 0 -model pb_file_path
+```
+The fisrt argument determine which dataset to evaluate.There are six options 0:LFW 1:asian_valid 2:asian_training 3:west_valid 4:west_training 5:Geo_test set
+
+optional arguments is image width and feature dimetion
+
+The result will show best average accuracy at same persion and different persion and the gap. The definition of gap is that distance between same and different people group divided by stdev of different people group.
+
+Option 0~4 will run 5 times because we only evaluate a small set sampling from the whole data set. Option 5 evaluate whole data set so run 1 time only.
+
+## Gender and age
+```
+python eval_gender_Age_with_label.py Age -dir eval_floder -model pb_file_path
+```
+Fisrt argument determine eval age or gender
+
+the floder need to be structured as follows
+```
+eval_floder/
+         label1/            
+               image1.jpg
+               image2.jpg            
+               image3.jpg        
+         label2/            
+               image4.jpg            
+               image5.jpg            
+               image6.jpg        
+         label3/            
+               image7.jpg            
+               image8.jpg            
+               image9.jpg
+```
+The result will show the average accuracy over all labels and confusion matrix. 
+
 ## On going
 ### Training with larger batch size
 Bigger batch size seems to make the network trained better
