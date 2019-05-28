@@ -41,7 +41,7 @@ def main():
     parser = argparse.ArgumentParser(description = 'Make img data to binary')
     parser.add_argument('-in_dir', required=True, type=str, help='Path to source floder')
     parser.add_argument('-bin_name', required=True, nargs='+', type=str, help='bin_name')
-    parser.add_argument('-out_dir', required=True, type=str, help='(optional) target_floder')
+    parser.add_argument('-out_dir', required=True, type=str, help='target_floder')
     #parser.add_argument('-w', '--imgage_width', type=int, default = 224, help='(optional) imgage_width Default: 224')
     #parser.add_argument('-p', '--padding_ratio', type=float, default = 0.25, help='(optional) padding_ratio Default: 0.25')
     args = parser.parse_args()

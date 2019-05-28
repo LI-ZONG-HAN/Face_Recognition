@@ -24,7 +24,7 @@ def write_to_bin(f_bin,f_inx,img_path,img_label,img_bytes):
     start_index = f_bin.tell()
     f_bin.write(img_bytes)
     end_index = f_bin.tell()
-    f_inx.write("{},{:d},{:d},{:d}\n".format(img_path,img_label,start_index,end_index))
+    f_inx.write("{}\t{:d}\t{:d}\t{:d}\n".format(img_path,img_label,start_index,end_index))
 	
 def load_path_lists(data_dir):
     lists = os.listdir(data_dir)
@@ -262,10 +262,12 @@ args = parser.parse_args()
 
 
 
+
 bool_list = {"True": True, "False": False}
 if not args.is_FR_dataset in bool_list.keys():
     print("is_FR_dataset typeing error, pls type True or False")
 else:
+	
 	data_type = bool_list[args.is_FR_dataset]
 	data_dir = args.dir
 	file_path = args.file_name
@@ -273,6 +275,12 @@ else:
 	img_H = img_W
 	pad_ratio = args.padding_ratio
 	out_name = args.output_name
+	print("{:15}{}".format("data_type",data_type))
+	print("{:15}{}".format("data_dir",data_dir))
+	print("{:15}{}".format("file_path",file_path))
+	print("{:15}{}".format("img_W",img_W))
+	print("{:15}{}".format("pad_ratio",pad_ratio))
+	print("{:15}{}".format("out_name",out_name))
 	train_paths = None
 	train_lms = None
 	train_labels = None
