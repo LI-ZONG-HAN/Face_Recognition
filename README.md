@@ -78,7 +78,12 @@ eval_floder/
                image8.jpg            
                image9.jpg
 ```
-The result will show the average accuracy over all labels and confusion matrix. 
+The result will show the average accuracy over all labels and confusion matrix.
+
+## Eval gender on MS_Celeb_1M
+"eval_gender_Age_with_label.py" is to evaulate labeled data_set. However the number of gender test data is too small.We sample and classify gender on a small group of images from MS_Celeb_1M which is not labeled and label the small group to get accuracy.
+
+
 
 ## On going
 ### Training with larger batch size
