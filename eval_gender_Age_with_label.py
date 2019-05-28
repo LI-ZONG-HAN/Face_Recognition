@@ -489,9 +489,12 @@ else:
 	#print(Total_label.shape)
 	average_acc = np.average(acc.diagonal())
 	print("average_accuracy: ",average_acc)
+	print("-------------------\n")
+	print("Confusion matrix by count\n")
 	for a in cnt:
 		print(a)
-
+	print("-------------------\n")
+	print("Confusion matrix by accuracy\n")
 	for a in acc:
 		print(a)
 	
