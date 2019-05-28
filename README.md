@@ -42,9 +42,9 @@ About learning rate decay.Instead of steps or polynomial decay, the learning rat
 it will make the network trained better because you never know how many steps the training need before you train it. 
 [How to determine loss stop improving](http://blog.dlib.net/2018/02/automatic-learning-rate-scheduling-that.html)
 
-### Evaluation
+## Evaluation
 
-## FR
+### FR
 ```
 python eval_FR.py 0 -model pb_file_path
 ```
@@ -56,7 +56,7 @@ The result will show best average accuracy at same persion and different persion
 
 Option 0~4 will run 5 times because we only evaluate a small set sampling from the whole data set. Option 5 evaluate whole data set so run 1 time only.
 
-## Gender and age
+### Gender and age
 ```
 python eval_gender_Age_with_label.py Age -dir eval_floder -model pb_file_path
 ```
