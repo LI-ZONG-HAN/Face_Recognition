@@ -296,7 +296,7 @@ def main():
     
     parser = argparse.ArgumentParser(description = 'Eval FR model')
     parser.add_argument('eval_datasets', type=int, help='pls chose one of 6 datasets, 0:LFW, 1:asian_train, 2:asian_valid, 3:west_train, 4:west_valid, 5:Geo_test')
-    parser.add_argument('-model', required=True, type=str, help='Path to trained FR model')
+    parser.add_argument('-model', required=True, type=str, help='Path to trained FR model, type is tensorflow pb file')
     parser.add_argument('-w', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
     parser.add_argument('-dim', '--Embedding_Dims', type=int, default = 512, help='(optional) imgage_width Default: 512')
     args = parser.parse_args()
