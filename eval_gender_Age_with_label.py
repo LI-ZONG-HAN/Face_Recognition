@@ -317,10 +317,6 @@ else:
 		label_list += [i for l in path_lists_temp[i]]	
 		path_list += path_lists_temp[i]
 
-	print(len(label_list))
-	print(len(path_list))
-
-
 	my_queue = Queue(maxsize=100)
 	batch_size = 20
 	thread_num = 5
@@ -480,7 +476,7 @@ else:
 				
 				
 
-	print ("total_time= ", time.time()-t1)
+	#print ("total_time= ", time.time()-t1)
 
 
 		
@@ -489,8 +485,8 @@ else:
 		data_loader[i].join()	
 		
 	acc,cnt,_ = Confusion_M(Total_Pred,Total_label)
-	print(Total_Pred.shape)
-	print(Total_label.shape)
+	#print(Total_Pred.shape)
+	#print(Total_label.shape)
 	average_acc = np.average(acc.diagonal())
 	print("average_accuracy: ",average_acc)
 	for a in cnt:
