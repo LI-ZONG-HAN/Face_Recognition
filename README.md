@@ -60,7 +60,7 @@ Option 0~4 will run 5 times because we only evaluate a small set sampling from t
 ```
 python eval_gender_Age_with_label.py Age -dir eval_floder -model pb_file_path
 ```
-Fisrt argument determine eval age or gender
+Fisrt argument determine evaluate whether age or gender
 
 the floder need to be structured as follows
 ```
