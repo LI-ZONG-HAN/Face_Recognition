@@ -104,7 +104,8 @@ def reformat(data_dir,train_sets, concatenate = False):
             img_bin_index += [ np.array(array.shape[0]*[i],dtype = np.uint32) for array in indexs_temp]
 
     return f_bin_path_train, indexs_train, img_bin_index
-	
+
+
 def load_index_lists(data_dir,flie_name):
     with open(os.path.join(data_dir,flie_name),"r") as f:
         lines = f.readlines()
@@ -633,20 +634,22 @@ def main():
 
     parser = argparse.ArgumentParser(description = 'Runs the FR & Gender & Age training process')
     parser.add_argument('training_item', type=str, help='pls chose one of 3 training item FR, Gender, Age"')
-    parser.add_argument('-train_sets', required=True, type=str, nargs='+', help='Path to training set list Ex. FR_west_training FR_asian_training')
-    parser.add_argument('-valid_sets', required=True, type=str, nargs='+', help='Path to training set list Ex. FR_west_valid FR_asian_valid')
-    parser.add_argument('-img_h', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
-    parser.add_argument('-w_s', '--weight_decay_share', type=float, default = 0.0005, help='(optional) weight_decay_share Default: 0.0005')
-    parser.add_argument('-w_f', '--weight_decay_FR', type=float, default = 0.0005, help='(optional) weight_decay_FR Default: 0.0005')
-    parser.add_argument('-w_g', '--weight_decay_Gender', type=float, default = 0.0005, help='(optional) weight_decay_Gender Default: 0.0005')
-    parser.add_argument('-w_a', '--weight_decay_Age', type=float, default = 0.0005, help='(optional) weight_decay_Age Default: 0.0005')
+    parser.add_argument('-train_sets', required=True, type=str, nargs='+', help='name of train bin file  Ex. FR_west_training FR_asian_training')
+    parser.add_argument('-valid_sets', required=True, type=str, nargs='+', help='name of valid bin file  Ex. FR_west_valid FR_asian_valid')
+    parser.add_argument('-img_h', '--imgage_width', type=int, default = 112, help='(optional) the image width. assume width == height Default: 112')
+    parser.add_argument('-w_s', '--weight_decay_share', type=float, default = 0.0005, help='(optional) weight_decay of share layers(Resnet-50) Default: 0.0005')
+    parser.add_argument('-w_f', '--weight_decay_FR', type=float, default = 0.0005, help='(optional) weight_decay of FR layers Default: 0.0005')
+    parser.add_argument('-w_g', '--weight_decay_Gender', type=float, default = 0.0005, help='(optional) weight_decay of Gender layers Default: 0.0005')
+    parser.add_argument('-w_a', '--weight_decay_Age', type=float, default = 0.0005, help='(optional) weight_decay of Age layers Default: 0.0005')
     parser.add_argument('-fr_dim', '--FR_Emb_Dim', type=int, default = 512, help='(optional) FR_Embedding_Dims Default: 512')
     parser.add_argument('-g_lays', '--Gender_hinden_layers_dims', type=int, default = [512], nargs='+', help='(optional) Gender_hinden_layers_dims Default: [512]')
     parser.add_argument('-a_lays', '--Age_hinden_layers_dims', type=int, default = [512,512], nargs='+', help='(optional) Age_hinden_layers_dims Default: [512,512]')
-    parser.add_argument('-lr', '--initial_lr', type=float, default = [1e-3,1e-3,1e-3], nargs='+', help='(optional) initial_lr [FR,Gender,Age] Default: [1e-3,1e-3,1e-3]')
-    parser.add_argument('-s', '--step_without_progress_thresh', type=int, default = 15000, help='(optional) _step_without_progress_thresh Default: 15000')
+    parser.add_argument('-lr_f', '--initial_lr_FR', type=float, default = 1e-3, help='(optional) FR initial learning rate  Default: 1e-3')
+    parser.add_argument('-lr_g', '--initial_lr_Gender', type=float, default = 1e-3, help='(optional) Gender initial learning rate Default: 1e-3')
+    parser.add_argument('-lr_a', '--initial_lr_Age', type=float, default = 1e-3, help='(optional) Age initial learning rate Default: 1e-3')
+    parser.add_argument('-s', '--step_without_progress_thresh', type=int, default = 15000, help='(optional) _step_without_progress_threshold Default: 15000')
     parser.add_argument('-is_s_t', '--is_share_layers_training', type=str, default = "True", help='(optional) is_share_layers_training Default: True')
-    parser.add_argument('-model', '--load_model_path', type=str, default = None, help='(optional) pre-trained model to be load')
+    parser.add_argument('-model', '--load_model_path', type=str, default = None, help='(optional) path to pre-trained model, Default is Resnet-50-V1 download from Tensorflow')
     args = parser.parse_args()
      
     task = ["FR","Gender","Age"]
@@ -670,7 +673,7 @@ def main():
     hyper_para["FR_Emb_Dim"] = args.FR_Emb_Dim
     hyper_para["Gender_hinden_layers_dims"] = args.Gender_hinden_layers_dims
     hyper_para["Age_hinden_layers_dims"] = args.Age_hinden_layers_dims
-    hyper_para["initial_lr"] = args.initial_lr
+    hyper_para["initial_lr"] = [args.initial_lr_FR,args.initial_lr_Gender,args.initial_lr_Age]
     hyper_para["step_without_progress_thresh"] = args.step_without_progress_thresh
     hyper_para["is_share_layers_training"] = bool_list[args.is_share_layers_training]
     saved_file_path = args.load_model_path
@@ -698,8 +701,8 @@ def main():
         wid = "{:02d}-{:02d}_{:02d}-{:02d}".format( time.localtime()[1], time.localtime()[2], \
                                       time.localtime()[3],time.localtime()[4])
         #tf.logging.info("work ID: %s", wid)
-        #exp_dir = "Model/{}".format(wid)
-        exp_dir = "Model/05-16_12-15"
+        exp_dir = "Model/{}".format(wid)
+        #exp_dir = "Model/05-16_12-15"
         if not os.path.exists(exp_dir):
             os.makedirs(exp_dir)
         
@@ -717,10 +720,8 @@ def main():
         #FR_IDs = 93479+86373 #west+asian
 
         if (task[training_item] == "Gender"):
-            #Gender_train_sets = ["gender_training"]
-            #Gender_data_dir = "training"
+
             Gender_f_bin_path_train , Gender_indexs_train, Gender_f_bin_idx_train = reformat(data_dir,train_sets,True)
-            #Gender_valid_sets = ["gender_valid","gender_test"]
             Gender_f_bin_path_valid , Gender_indexs_valid, Gender_f_bin_idx_valid = reformat(data_dir,valid_sets,True)
        
 			
@@ -837,18 +838,16 @@ def main():
             evaluator[task[0]] = Evaluator_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
             evaluator[task[1]] = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
             evaluator[task[2]] = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
-            #evaluator_FR = Evaluator_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
-            #evaluator_Gender = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
-            #evaluator_Age = Evaluator_non_FR(net, logger, eval_train_secs,eval_valid_secs, train_save_path,valid_save_path, sess)
             saver.session = sess
             print ("start_training")
 
             #sess.run(tf.assign(net._lr_rate[task[0]],1e-7))
-            sess.run(tf.assign(net._lr_rate[task[1]],1e-3))
-            sess.run(tf.assign(net._lr_rate[task[2]],1e-3))
+            #sess.run(tf.assign(net._lr_rate[task[1]],1e-3))
+            #sess.run(tf.assign(net._lr_rate[task[2]],1e-3))
             #sess.run(tf.assign(net._step_cnt_op,0))
             training_stop = False
             while net._lr_rate[task[training_item]].eval() >= 1e-6:
+                #break
                 if (net._step_cnt_op.eval()%800 == 0):
                     print("{}_queue.size{:3d},".format(task[training_item],queue.qsize()))
 
