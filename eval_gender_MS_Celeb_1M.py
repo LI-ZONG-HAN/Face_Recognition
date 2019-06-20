@@ -72,7 +72,7 @@ def load_path_lm_lists(data_dir,flie_name):
         del hush_table
     return path_list,lm_list
 class Data_Thread(threading.Thread):
-    def __init__(self, threadID,batch_size, img_height,img_width, jitter_count,q):
+    def __init__(self, threadID,batch_size, img_height,img_width, jitter_count,padding,q):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.queue = q
@@ -83,7 +83,7 @@ class Data_Thread(threading.Thread):
         self._thread_stop = False 
         self._detector = dlib.get_frontal_face_detector()
         self._sp = dlib.shape_predictor("shape_predictor_5_face_landmarks.dat")
-        self._padding = 0.25
+        self._padding = padding
         self.start_index = 0
         self._jitter_count = jitter_count
       
@@ -256,11 +256,12 @@ def inference_img(graph,input_batch,dim):
 			
 parser = argparse.ArgumentParser(description = 'eval gender MS_Celeb_1M')
 parser.add_argument('-out_dir', required=True, type=str, help='output_floder')
-parser.add_argument('-model', '--load_model_path', required=True, type=str, default = None, help='(optional) pre-trained model to be load')
+parser.add_argument('-model', '--load_model_path', required=True, type=str, default = None, help='pre-trained model to be load, pb file')
 parser.add_argument('-int_dir', '--eval_path', type=str, default = "Data/MS-Celeb-1M", help='(optional) MS-Celeb-1M path')
 parser.add_argument('-img_w', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
 parser.add_argument('-s', '--test_size', type=int, default = 20000, help='(optional) number of eval images Default: 20000')
 parser.add_argument('-fr_dim', '--FR_Emb_Dim', type=int, default = 512, help='(optional) FR_Embedding_Dims Default: 512')
+parser.add_argument('-p', '--padding_ratio', type=float, default = 0.25, help='(optional) padding_ratio Default: 0.25')
 args = parser.parse_args()	
 
 
@@ -272,12 +273,14 @@ img_H = img_W
 source_dir = args.eval_path
 out_dir = args.out_dir
 test_size =args.test_size
+padding = args.padding_ratio
 print("{:15}{}".format("source_dir",source_dir))
 print("{:15}{}".format("out_dir",out_dir))
 print("{:15}{}".format("model_path",model_path))
 print("{:15}{}".format("image_width",img_W))
 print("{:15}{}".format("emb_dim",emb_dim))
 print("{:15}{}".format("test_size",test_size))
+print("{:15}{}".format("padding",padding))
 
 tf.reset_default_graph()
 
@@ -319,7 +322,7 @@ if not os.path.exists(os.path.join(target_dir,"Male")):
     os.makedirs(os.path.join(target_dir,"Male"))
 data_loader = []
 for i in range(thread_num):
-	data_loader.append(Data_Thread(i+1,batch_size, img_H,img_W, jitter_count, my_queue))
+	data_loader.append(Data_Thread(i+1,batch_size, img_H,img_W, jitter_count,padding, my_queue))
 	data_loader[i].start()
 
     

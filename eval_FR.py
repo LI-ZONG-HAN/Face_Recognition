@@ -61,7 +61,7 @@ def load_path_lm_lists(data_dir,flie_name):
     return path_list,lm_list
 	
 class Data_Thread(threading.Thread):
-    def __init__(self, threadID, seed, path_list,lm_list, person_no, img_no_person, img_height,img_width,q,take_all):
+    def __init__(self, threadID, seed, path_list,lm_list, person_no, img_no_person, img_height,img_width,padding,q,take_all):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.seed = int(seed)
@@ -78,7 +78,7 @@ class Data_Thread(threading.Thread):
         self._path_list = path_list
         self._lm_list = lm_list
         self._total_id = len(self._path_list)
-        self._padding = 0.25
+        self._padding = padding
         self._take_all = take_all
        
     
@@ -295,10 +295,11 @@ def Diff_person_eval(labels, pairwise_dist):
 def main():
     
     parser = argparse.ArgumentParser(description = 'Eval FR model')
-    parser.add_argument('eval_datasets', type=int, help='pls chose one of 6 datasets, 0:LFW, 1:asian_train, 2:asian_valid, 3:west_train, 4:west_valid, 5:Geo_test')
+    parser.add_argument('eval_datasets', type=int, help='pls chose one of 6 datasets, 0:LFW, 1:asian_valid, 2:asian_train, 3:west_valid, 4:west_train, 5:Geo_test')
     parser.add_argument('-model', required=True, type=str, help='Path to trained FR model, type is tensorflow pb file')
     parser.add_argument('-w', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
     parser.add_argument('-dim', '--Embedding_Dims', type=int, default = 512, help='(optional) imgage_width Default: 512')
+    parser.add_argument('-p', '--padding_ratio', type=float, default = 0.25, help='(optional) padding_ratio Default: 0.25')
     args = parser.parse_args()
     task = ["LFW","asian_valid","asian_asianing", "West_valid", "West_training", "Geo_test"]
     _info = {}
@@ -317,10 +318,12 @@ def main():
     Img_W = args.imgage_width
     Img_H = Img_W
     emb_dim = args.Embedding_Dims
+    padding = args.padding_ratio
     print("{:15}{}".format("eval_item",eval_item))
     print("{:15}{}".format("model_path",model_path))
     print("{:15}{}".format("image_width",Img_W))
     print("{:15}{}".format("emb_dim",emb_dim))
+    print("{:15}{}".format("padding",padding))
     for k,v in _info[eval_item].items():
         print("{:15}{}".format(k,v))
 
@@ -330,10 +333,10 @@ def main():
     data_thread1 = None
     if (_info[eval_item]["load_type"] == 0):
         path_lists = load_path_lists(_info[eval_item]["path"])
-        data_thread1 = Data_Thread(1,time.time(), path_lists, [] ,_info[eval_item]["IDs_C"],_info[eval_item]["C_per_ID"],Img_H,Img_W,my_queue,_info[eval_item]["take_all"])
+        data_thread1 = Data_Thread(1,time.time(), path_lists, [] ,_info[eval_item]["IDs_C"],_info[eval_item]["C_per_ID"],Img_H,Img_W,padding,my_queue,_info[eval_item]["take_all"])
     else:
         valid_path,valid_lm = load_path_lm_lists(_info[eval_item]["dir"],_info[eval_item]["file"])
-        data_thread1 = Data_Thread(1,time.time(), valid_path, valid_lm ,_info[eval_item]["IDs_C"],_info[eval_item]["C_per_ID"],Img_H,Img_W,my_queue,_info[eval_item]["take_all"])
+        data_thread1 = Data_Thread(1,time.time(), valid_path, valid_lm ,_info[eval_item]["IDs_C"],_info[eval_item]["C_per_ID"],Img_H,Img_W,padding,my_queue,_info[eval_item]["take_all"])
 	
     print ("load list finished")
     loop = 5

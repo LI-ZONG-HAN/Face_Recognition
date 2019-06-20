@@ -7,8 +7,10 @@ import json
 import threading
 from queue import Queue
 from Net import Net_Arcface_multi_task as ArcFace
-from tensorflow.contrib.slim import nets
-slim = tf.contrib.slim
+#from Net import Net_Arcface_multi_task_MultiGPU as ArcFace
+
+#from tensorflow.contrib.slim import nets
+#slim = tf.contrib.slim
 #import dlib
 
 import io
@@ -154,12 +156,19 @@ class FR_Data_Thread_by_Class(threading.Thread):
         #    self._bin_idx += [i for a in range(len(list))]
 
         self._total_classes = len(self._index_lists)
-        self._padding = 0.25
         self._task = task
         self._f_bin_paths = f_bin_paths
         self._f_bins = []
         self._label_shift = label_shift
-       
+        #self._rnd_index = []
+        #for lists in self._index_lists:
+        #    indexs = np.arange(lists.shape[0])
+        #    #np.random.shuffle(indexs)
+        #    self._rnd_index.append(indexs)
+        #for aa in self._rnd_index:
+        #    print(aa.shape, aa[0:10])
+        self._i = [np.random.randint(lists.shape[0], size=()).tolist() for lists in self._index_lists]
+        #print(len(self._i))
     
     def _randomize(self, lists, seed):
         permutation = np.random.RandomState(seed=seed).permutation(lists.shape[0])
@@ -181,30 +190,48 @@ class FR_Data_Thread_by_Class(threading.Thread):
         np.random.shuffle(labels)
         labels = labels[:min(self._num_class*2,self._total_classes)]
         ii = 0
-
+        sum_t1 = 0
+        sum_t2 = 0
+        sum_t3 = 0
         for label in labels:
             if (ii >= self._num_class):
                 break
-            if self._img_no_per_class < self._index_lists[label].shape[0]:
-                indexs = np.arange(self._index_lists[label].shape[0])
-                np.random.shuffle(indexs)
-            else:
-                indexs = np.random.randint(self._index_lists[label].shape[0], size=self._img_no_per_class)
+            #if self._img_no_per_class < self._index_lists[label].shape[0]:
+            #    indexs = np.arange(self._index_lists[label].shape[0])
+            #    np.random.shuffle(indexs)
+            #else:
+            #    indexs = np.random.randint(self._index_lists[label].shape[0], size=self._img_no_per_class)
 
             no_imgs = 0
             
             
-            for index in indexs: 
-                if (no_imgs >= self._img_no_per_class):
-                    break
+            #for index in indexs:
+            for i in range(self._img_no_per_class):
+
+                #if (no_imgs >= self._img_no_per_class):
+                #    break
+                #read_start = self._index_lists[label][index][0]
+                #read_end = self._index_lists[label][index][1]
+                #bin_idx = self._bin_idx[label][index]
+
+                if self._i[label] >= self._index_lists[label].shape[0]:
+                    self._i[label] = 0
+
+                index = self._i[label]
+                self._i[label] = self._i[label] + 1
                 read_start = self._index_lists[label][index][0]
                 read_end = self._index_lists[label][index][1]
                 bin_idx = self._bin_idx[label][index]
-                #self._f_bins[self._bin_idx[label]].seek(read_start)
+				
+                #t1 = time.time()
                 self._f_bins[bin_idx].seek(read_start)
-                #data = self._f_bins[self._bin_idx[label]].read(read_end - read_start)
+                #sum_t1 += (time.time()-t1)
+                #t1 = time.time()
                 data = self._f_bins[bin_idx].read(read_end - read_start)
+                #sum_t2 += (time.time()-t1)
+                #t1 = time.time()
                 img = Image.open(io.BytesIO(data))
+                #sum_t3 += (time.time()-t1)
                 h,w = img.size
                 if (h != self._img_height or w != self._img_width):
                     crop_img = img.resize((self._img_height, self._img_width), Image.ANTIALIAS)
@@ -225,7 +252,8 @@ class FR_Data_Thread_by_Class(threading.Thread):
         if (count < self._batch_size):
             res["img"] = res["img"][0:count]
             res["label"] = res["label"][0:count]
-
+        #if self.threadID < 3:
+        #    print("ID{:d} t1:{:4f} t2:{:4f} t3:{:4f} index:{:d} index:{:d}".format(self.threadID,sum_t1,sum_t2,sum_t3,self._i[0],self._i[1]))
         return res
        
     
@@ -636,7 +664,7 @@ def main():
     parser.add_argument('training_item', type=str, help='pls chose one of 3 training item FR, Gender, Age"')
     parser.add_argument('-train_sets', required=True, type=str, nargs='+', help='name of train bin file  Ex. FR_west_training FR_asian_training')
     parser.add_argument('-valid_sets', required=True, type=str, nargs='+', help='name of valid bin file  Ex. FR_west_valid FR_asian_valid')
-    parser.add_argument('-img_h', '--imgage_width', type=int, default = 112, help='(optional) the image width. assume width == height Default: 112')
+    parser.add_argument('-img_w', '--image_width', type=int, default = 112, help='(optional) the image width. assume width == height Default: 112')
     parser.add_argument('-w_s', '--weight_decay_share', type=float, default = 0.0005, help='(optional) weight_decay of share layers(Resnet-50) Default: 0.0005')
     parser.add_argument('-w_f', '--weight_decay_FR', type=float, default = 0.0005, help='(optional) weight_decay of FR layers Default: 0.0005')
     parser.add_argument('-w_g', '--weight_decay_Gender', type=float, default = 0.0005, help='(optional) weight_decay of Gender layers Default: 0.0005')
@@ -667,9 +695,9 @@ def main():
     hyper_para = {}
     hyper_para["weight_decay_share"] = args.weight_decay_share
     hyper_para["weight_decay"] = [args.weight_decay_FR, args.weight_decay_Gender, args.weight_decay_Age]
-    hyper_para["imgage_width"] = args.imgage_width
-    Img_W = args.imgage_width
-    Img_H = args.imgage_width
+    hyper_para["imgage_width"] = args.image_width
+    Img_W = args.image_width
+    Img_H = args.image_width
     hyper_para["FR_Emb_Dim"] = args.FR_Emb_Dim
     hyper_para["Gender_hinden_layers_dims"] = args.Gender_hinden_layers_dims
     hyper_para["Age_hinden_layers_dims"] = args.Age_hinden_layers_dims
@@ -702,7 +730,7 @@ def main():
                                       time.localtime()[3],time.localtime()[4])
         #tf.logging.info("work ID: %s", wid)
         exp_dir = "Model/{}".format(wid)
-        #exp_dir = "Model/05-16_12-15"
+        #exp_dir = "Model/06-09_23-49"
         if not os.path.exists(exp_dir):
             os.makedirs(exp_dir)
         
@@ -715,9 +743,9 @@ def main():
         data_dir = "training"
         data_loader = []
         thread_num = 16
-        FR_IDs = 86376  #west
+        #FR_IDs = 86376  #west
         #FR_IDs = 93479  #asian
-        #FR_IDs = 93479+86373 #west+asian
+        FR_IDs = 93479+86376 #west+asian
 
         if (task[training_item] == "Gender"):
 
@@ -736,14 +764,13 @@ def main():
             for i in range(thread_num):
                 data_loader.append(FR_Data_Thread_by_Class(i+1,time.time()+i,Gender_indexs_train,Gender_f_bin_path_train,Gender_f_bin_idx_train,2,75,Img_H,Img_W,"Gender",queue))
                 data_loader[i].start()
-        
-            Gender_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,Gender_indexs_valid,Gender_f_bin_path_valid,Gender_f_bin_idx_valid,2,250,Img_H,Img_W,"Gender",queue)
+            
+            Gender_valid_env = FR_Data_Thread_by_Class(8,time.time() + 8,Gender_indexs_valid,Gender_f_bin_path_valid,Gender_f_bin_idx_valid,2,2000,Img_H,Img_W,"Gender",queue)
             Gender_valid_env.open_bin()
             valid_data = Gender_valid_env.get_data()
             Gender_valid_env.close_bin()
             del Gender_valid_env
             print(valid_data["img"].shape)
-
         elif (task[training_item] == "Age"):
             #Age_train_sets = ["age_training_2"]
             #Age_data_dir = "training"
@@ -820,12 +847,12 @@ def main():
                 net.load_pre_trained_ckpt("Model/resnet_v1_50.ckpt")
             else:
 			
-                #pre_trained_variables = [var for var in net._variables_to_restore
-                #                         if not (var.name.startswith('step') or var.name.startswith('fc_Gender') or var.name.startswith('fc_Age_')
-			    #						 or var.name.startswith('lr') or var.name.find('Momentum') >= 0 ) ]
+                pre_trained_variables = [var for var in net._variables_to_restore
+                                         if not (var.name.startswith('step') or var.name.startswith('fc_Gender') or var.name.startswith('fc_Age_')
+			    						 or var.name.startswith('lr') or var.name.find('Momentum') >= 0 ) ]
             
-                #saver_ckpt = tf.train.Saver(pre_trained_variables)
-                saver_ckpt = tf.train.Saver()  
+                saver_ckpt = tf.train.Saver(pre_trained_variables)
+                #saver_ckpt = tf.train.Saver()  
                 ckpt = tf.train.get_checkpoint_state(saved_file_path)
                 print (ckpt.model_checkpoint_path)
                 if ckpt and ckpt.model_checkpoint_path:
@@ -844,11 +871,12 @@ def main():
             #sess.run(tf.assign(net._lr_rate[task[0]],1e-7))
             #sess.run(tf.assign(net._lr_rate[task[1]],1e-3))
             #sess.run(tf.assign(net._lr_rate[task[2]],1e-3))
-            #sess.run(tf.assign(net._step_cnt_op,0))
+            sess.run(tf.assign(net._step_cnt_op,0))
             training_stop = False
             while net._lr_rate[task[training_item]].eval() >= 1e-6:
+            #while training_stop:
                 #break
-                if (net._step_cnt_op.eval()%800 == 0):
+                if (net._step_cnt_op.eval()%500 == 0):
                     print("{}_queue.size{:3d},".format(task[training_item],queue.qsize()))
 
                 train_batch = queue.get()
@@ -860,6 +888,11 @@ def main():
                 logger.log(net.step_cnt())
                 logger._vals.clear()
                 saver.save(net.step_cnt())
+                #if not (net._lr_rate[task[training_item]].eval() >= 1e-6):
+                #    print("1 ",net._lr_rate[task[training_item]].eval())
+                #    print("2 ",net._lr_rate[task[training_item]].eval() >= 1e-6)
+                #    print("3 ",net._lr_rate[task[training_item]].eval() - 1e-6)
+                    
 				
             model_path = exp_dir+"/frozen_model.pb"
             net.freeze_deploy_graph(model_path)

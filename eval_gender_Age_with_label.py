@@ -54,7 +54,7 @@ def load_path_lm_lists(data_dir,flie_name):
     return path_list,lm_list
 	
 class Data_Thread(threading.Thread):
-    def __init__(self, threadID,batch_size, img_height,img_width, jitter_count,q):
+    def __init__(self, threadID,batch_size, img_height,img_width, jitter_count,padding,q):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.queue = q
@@ -65,7 +65,7 @@ class Data_Thread(threading.Thread):
         self._thread_stop = False 
         self._detector = dlib.get_frontal_face_detector()
         self._sp = dlib.shape_predictor("shape_predictor_5_face_landmarks.dat")
-        self._padding = 0.25
+        self._padding = padding
         self.start_index = 0
         self._jitter_count = jitter_count
       
@@ -101,12 +101,12 @@ class Data_Thread(threading.Thread):
             try :
                 img = Image.open(path)
                 img = img.convert('RGB')
-                h,w = img.size
-                if (h == 150 and w == 150):
-                    crop_img = img.resize((self._img_height, self._img_width), Image.ANTIALIAS)
-                    crop_img = np.array(crop_img)
-                else:
-                    crop_img, _ = self.Crop_1_face_no_FD(img, self._img_height , self._padding)
+                #h,w = img.size
+                #if (h == 150 and w == 150):
+                #    crop_img = img.resize((self._img_height, self._img_width), Image.ANTIALIAS)
+                #    crop_img = np.array(crop_img)
+                #else:
+                crop_img, _ = self.Crop_1_face_no_FD(img, self._img_height , self._padding)
 
                 res["img"][count,:,:,:] = crop_img
                 res["label"][count] = m_label_list[i]
@@ -273,6 +273,7 @@ parser.add_argument('-dir', required=True, type=str, help='Path to floder of eva
 parser.add_argument('-model', '--load_model_path', required=True, type=str, help='Path to trained FR model, type is tensorflow pb file')
 parser.add_argument('-img_w', '--imgage_width', type=int, default = 112, help='(optional) imgage_width Default: 112')
 parser.add_argument('-fr_dim', '--FR_Emb_Dim', type=int, default = 512, help='(optional) FR_Embedding_Dims Default: 512')
+parser.add_argument('-p', '--padding_ratio', type=float, default = 0.25, help='(optional) padding_ratio Default: 0.25')
 args = parser.parse_args()	
 
 task = ["Gender","Age"]
@@ -282,11 +283,13 @@ data_floder = args.dir
 model_path = args.load_model_path
 img_W = args.imgage_width
 img_H = img_W
+padding = args.padding_ratio
 print("{:15}{}".format("eval_item",task[eval_item]))
 print("{:15}{}".format("data_floder",data_floder))
 print("{:15}{}".format("model_path",model_path))
 print("{:15}{}".format("image_width",img_W))
 print("{:15}{}".format("emb_dim",emb_dim))
+print("{:15}{}".format("padding",padding))
 
 if (eval_item < 0):
     print("training_item not found in task, task = [\"Gender\",\"Age\"]")
@@ -327,7 +330,7 @@ else:
 	g2 = load_graph(model_path)
 	data_loader = []
 	for i in range(thread_num):
-		data_loader.append(Data_Thread(i+1,batch_size, img_H,img_W, jitter_count, my_queue))
+		data_loader.append(Data_Thread(i+1,batch_size, img_H,img_W, jitter_count,padding, my_queue))
 		data_loader[i].start()
 
 		
