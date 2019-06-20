@@ -9,12 +9,16 @@ slim = tf.contrib.slim
 import scipy.stats
 import math
 import os
+import horovod.tensorflow as hvd
 
 class Res50_Arc_loss(object):
     def __init__(self,hyper_para,ToTal_IDs, graph):
         super(Res50_Arc_loss, self).__init__()
         self.session = None
+        hvd.init()
         self._config = tf.ConfigProto()
+        self._config.gpu_options.allow_growth = True
+        self._config.gpu_options.visible_device_list = str(hvd.local_rank())
         self._channels = 3
         self._share_layers_training = hyper_para["is_share_layers_training"]
         self._weight_decay_share = hyper_para["weight_decay_share"] #0.0015
@@ -26,13 +30,12 @@ class Res50_Arc_loss(object):
         self._Gender_class = 2
         self._Age_hinden_output = hyper_para["Age_hinden_layers_dims"]
         self._Age_Class = 7
-		
         self._task = ["FR","Gender","Age"]
         self._weight_decay = {self._task[0]:hyper_para["weight_decay"][0], self._task[1]:hyper_para["weight_decay"][1], self._task[2]:hyper_para["weight_decay"][2]}
         self._l2_norm = True
-        self._initial_lr_FR = hyper_para["initial_lr"][0] #initial learning rate
-        self._initial_lr_Gender = hyper_para["initial_lr"][1] #initial learning rate
-        self._initial_lr_Age = hyper_para["initial_lr"][2] #initial learning rate
+        self._initial_lr_FR = hyper_para["initial_lr"][0] * hvd.size()#initial learning rate
+        self._initial_lr_Gender = hyper_para["initial_lr"][1] * hvd.size()#initial learning rate
+        self._initial_lr_Age = hyper_para["initial_lr"][2] * hvd.size()#initial learning rate
         self._lr_shrink_rate = 0.1
         self._ToTal_IDs = ToTal_IDs
         self._step_without_progress_thresh = hyper_para["step_without_progress_thresh"]
@@ -142,14 +145,18 @@ class Res50_Arc_loss(object):
             #self._small_lr = tf.multiply(self._learning_rate, 1)
             self._optimize_op = {}
             with tf.control_dependencies(self._update_ops_share + self._update_ops_FR):
-                self._optimize_op[self._task[0]] = tf.train.MomentumOptimizer( learning_rate = self._lr_rate[self._task[0]], momentum=0.9 )\
-                                                   .minimize(self._total_loss[self._task[0]])
+                op_FR = tf.train.MomentumOptimizer( learning_rate = self._lr_rate[self._task[0]], momentum=0.9 )
+                op_FR = hvd.DistributedOptimizer(op_FR)
+                self._optimize_op[self._task[0]] = op_FR.minimize(self._total_loss[self._task[0]])
             with tf.control_dependencies(self._update_ops_share + self._update_ops_Gender):
-                self._optimize_op[self._task[1]] = tf.train.MomentumOptimizer( learning_rate = self._lr_rate[self._task[1]], momentum=0.9 )\
-                                                   .minimize(self._total_loss[self._task[1]])
+                op_Gender = tf.train.MomentumOptimizer( learning_rate = self._lr_rate[self._task[1]], momentum=0.9 )
+                op_Gender = hvd.DistributedOptimizer(op_Gender)
+                self._optimize_op[self._task[1]] = op_Gender.minimize(self._total_loss[self._task[1]])
             with tf.control_dependencies(self._update_ops_share + self._update_ops_Age):
-                self._optimize_op[self._task[2]] = tf.train.MomentumOptimizer( learning_rate = self._lr_rate[self._task[2]], momentum=0.9 )\
-                                                   .minimize(self._total_loss[self._task[2]])
+                op_Age = tf.train.MomentumOptimizer( learning_rate = self._lr_rate[self._task[2]], momentum=0.9 )
+                op_Age = hvd.DistributedOptimizer(op_Age)
+                self._optimize_op[self._task[2]] = op_Age.minimize(self._total_loss[self._task[2]])
+												  
 
             self._eval_ops = {}
             self._small_batch_output = {}
