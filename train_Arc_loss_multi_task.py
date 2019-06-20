@@ -847,12 +847,12 @@ def main():
                 net.load_pre_trained_ckpt("Model/resnet_v1_50.ckpt")
             else:
 			
-                pre_trained_variables = [var for var in net._variables_to_restore
-                                         if not (var.name.startswith('step') or var.name.startswith('fc_Gender') or var.name.startswith('fc_Age_')
-			    						 or var.name.startswith('lr') or var.name.find('Momentum') >= 0 ) ]
+                #pre_trained_variables = [var for var in net._variables_to_restore
+                #                         if not (var.name.startswith('step') or var.name.startswith('fc_Gender') or var.name.startswith('fc_Age_')
+		#	    						 or var.name.startswith('lr') or var.name.find('Momentum') >= 0 ) ]
             
-                saver_ckpt = tf.train.Saver(pre_trained_variables)
-                #saver_ckpt = tf.train.Saver()  
+                #saver_ckpt = tf.train.Saver(pre_trained_variables)
+                saver_ckpt = tf.train.Saver()  
                 ckpt = tf.train.get_checkpoint_state(saved_file_path)
                 print (ckpt.model_checkpoint_path)
                 if ckpt and ckpt.model_checkpoint_path:
@@ -871,7 +871,7 @@ def main():
             #sess.run(tf.assign(net._lr_rate[task[0]],1e-7))
             #sess.run(tf.assign(net._lr_rate[task[1]],1e-3))
             #sess.run(tf.assign(net._lr_rate[task[2]],1e-3))
-            sess.run(tf.assign(net._step_cnt_op,0))
+            #sess.run(tf.assign(net._step_cnt_op,0))
             training_stop = False
             while net._lr_rate[task[training_item]].eval() >= 1e-6:
             #while training_stop:
