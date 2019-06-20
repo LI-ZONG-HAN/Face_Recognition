@@ -45,7 +45,7 @@ def load_path_lists_FR(data_dir,flie_name):
     with open(os.path.join(data_dir,flie_name).replace("\\","/"),"r") as f:
         lines = f.readlines()
         lines = [f.strip() for f in lines]
-        label_list = [f.strip().split(" ",1)[0].split("/")[1] for f in lines]		
+        label_list = [f.strip().split(" ",1)[0].split("/")[1] for f in lines]
         path_list = np.array([data_dir+"/"+f.strip().split(" ",1)[0].replace("\\","/") for f in lines])
         lm_list = np.array([f.strip().split(" ",1)[1].split(" ")[1:] for f in lines],dtype = np.float32)
         hush_table = {}
@@ -68,6 +68,35 @@ def load_path_lists_FR(data_dir,flie_name):
             labels += [i for num in range(ls.shape[0])]
         labels = np.array(labels, dtype = np.int32)
         del label_list
+        del hush_table
+    return path_list_by_id, lm_list_by_id, path_list, lm_list, labels
+	
+def load_path_lists_Gender_Age(data_dir,flie_name,gender = True):
+    with open(os.path.join(data_dir,flie_name).replace("\\","/"),"r") as f:
+        lines = f.readlines()
+        lines = [f.strip() for f in lines]
+        label_list = [f.strip().split(" ",1)[0].split("/")[1] for f in lines]
+        if gender:
+            labels = np.array([f.strip().split(" ")[2] for f in lines],dtype = np.uint64)
+        else:
+            labels = np.array([f.strip().split(" ")[3] for f in lines],dtype = np.uint64)
+            labels[labels>6] = 6
+        path_list = np.array([data_dir+"/"+f.strip().split(" ",1)[0].replace("\\","/") for f in lines])
+        lm_list = np.array([f.strip().split(" ",1)[1].split(" ")[3:] for f in lines],dtype = np.float32)
+		
+        hush_table = {}
+        for i in range(np.amax(labels).tolist()+1):
+            hush_table[i] = []
+
+        path_list_by_id = []
+        lm_list_by_id =[]
+        for i,l in enumerate(labels):
+            hush_table[l] += [i]
+
+        for k in range(np.amax(labels).tolist()+1):
+            path_list_by_id.append(path_list[hush_table[k]])
+            lm_list_by_id.append(lm_list[hush_table[k]])
+		
         del hush_table
     return path_list_by_id, lm_list_by_id, path_list, lm_list, labels
 	
@@ -252,9 +281,10 @@ class Data_Thread(threading.Thread):
 tf.reset_default_graph()
 
 parser = argparse.ArgumentParser(description = 'Make img data to binary')
-parser.add_argument('is_FR_dataset', type=str, help='is FR dataset?  True:FR False:other')
+parser.add_argument('is_table_use', type=str, help='is_table_use?  True:Table_use False: read floder direct')
+parser.add_argument('is_FR_Gender_Age_dataset', type=str, help='is FR is_FR_Gender_Age_dataset?  FR or Gender or Age')
 parser.add_argument('-dir', required=True, type=str, help='Path to root floder')
-parser.add_argument('-f', '--file_name', required=True, type=str, help='Path to image floder or FR file')
+parser.add_argument('-f', '--file_name', required=True, type=str, help='Path to image floder or table file')
 parser.add_argument('-out_name', '--output_name', type=str, default = "images", help='(optional) output_name Default: images')
 parser.add_argument('-w', '--imgage_width', type=int, default = 224, help='(optional) imgage_width Default: 224')
 parser.add_argument('-p', '--padding_ratio', type=float, default = 0.25, help='(optional) padding_ratio Default: 0.25')
@@ -264,30 +294,40 @@ args = parser.parse_args()
 
 
 bool_list = {"True": True, "False": False}
-if not args.is_FR_dataset in bool_list.keys():
-    print("is_FR_dataset typeing error, pls type True or False")
+type_list ={"FR":0, "Gender":1, "Age":2}
+if not args.is_table_use in bool_list.keys():
+    print("is_table_use typeing error, pls type True or False")
+elif not args.is_FR_Gender_Age_dataset in type_list.keys():
+	print("is_FR_Gender_Age_dataset typeing error, pls type FR or Gender or Age")
+
 else:
-	
-	data_type = bool_list[args.is_FR_dataset]
-	data_dir = args.dir
+	is_table_use = bool_list[args.is_table_use]
+	data_type = type_list[args.is_FR_Gender_Age_dataset]
+	data_dir = args.dir.replace("\\","/")
 	file_path = args.file_name
 	img_W = args.imgage_width
 	img_H = img_W
 	pad_ratio = args.padding_ratio
 	out_name = args.output_name
-	print("{:15}{}".format("data_type",data_type))
+	print("{:15}{}".format("is_table_use",is_table_use))
+	print("{:15}{}".format("which_dataset",args.is_FR_Gender_Age_dataset))
 	print("{:15}{}".format("data_dir",data_dir))
 	print("{:15}{}".format("file_path",file_path))
 	print("{:15}{}".format("img_W",img_W))
 	print("{:15}{}".format("pad_ratio",pad_ratio))
 	print("{:15}{}".format("out_name",out_name))
+	
 	train_paths = None
 	train_lms = None
 	train_labels = None
-	if data_type:
+	if is_table_use:
 		#data_dir = "training/FR_original_data"
 		#FR_file_name = "West_training"
-		_,_,train_paths,train_lms,train_labels = load_path_lists_FR(data_dir,file_path)
+		if data_type == 0:
+			_,_,train_paths,train_lms,train_labels = load_path_lists_FR(data_dir,file_path)
+		else:
+			gender = True if data_type==1 else False
+			_,_,train_paths,train_lms,train_labels = load_path_lists_Gender_Age(data_dir,file_path,gender)
 	else:
 		#data_dir = "training/age_data"
 		#floder = "__age_valid_2"
@@ -401,6 +441,7 @@ else:
 		for i,path in enumerate(test_batch["path_list"]):
 			#save_path = os.path.join(target,path.split("/",2)[-1])
 			save_path = path.split(data_dir)[-1].split("/",1)[-1]
+			#print(path.split(data_dir)[-1] , data_dir)
 			label = test_batch["label"][i]
 			#print(save_path)
 			write_to_bin(f_bin,f_inx,save_path,label,imgs[i])
