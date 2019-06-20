@@ -42,6 +42,16 @@ About learning rate decay.Instead of steps or polynomial decay, the learning rat
 it will make the network trained better because you never know how many steps the training need before you train it. 
 [How to determine loss stop improving](http://blog.dlib.net/2018/02/automatic-learning-rate-scheduling-that.html)
 
+### Multi-GPU training
+Need to install MPI4.0.0+ and honovod
+
+Modify train_Arc_loss_multi_task.py : comment line 9, un-comment line 10, comment line 732 , un-comment line733 which direct the path to save your trained model
+
+To run on a machine with 2 GPUs
+```
+horovodrun -np 2 -H localhost:2 python python train_Arc_loss_multi_task.py FR -train_sets bin_file_name -valid_sets bin_file_name
+```
+
 ## Evaluation
 
 ### FR
