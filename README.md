@@ -49,7 +49,7 @@ Modify train_Arc_loss_multi_task.py : comment line 9, un-comment line 10, commen
 
 To run on a machine with 2 GPUs
 ```
-horovodrun -np 2 -H localhost:2 python python train_Arc_loss_multi_task.py FR -train_sets bin_file_name -valid_sets bin_file_name
+horovodrun -np 2 -H localhost:2 python train_Arc_loss_multi_task.py FR -train_sets bin_file_name -valid_sets bin_file_name
 ```
 
 ## Evaluation
