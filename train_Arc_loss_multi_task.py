@@ -196,24 +196,26 @@ class FR_Data_Thread_by_Class(threading.Thread):
         for label in labels:
             if (ii >= self._num_class):
                 break
+            #random smapling
             #if self._img_no_per_class < self._index_lists[label].shape[0]:
             #    indexs = np.arange(self._index_lists[label].shape[0])
             #    np.random.shuffle(indexs)
             #else:
             #    indexs = np.random.randint(self._index_lists[label].shape[0], size=self._img_no_per_class)
-
+            
             no_imgs = 0
             
             
-            #for index in indexs:
+            #for index in indexs: #random smapling
             for i in range(self._img_no_per_class):
-
+                #random smapling
                 #if (no_imgs >= self._img_no_per_class):
                 #    break
                 #read_start = self._index_lists[label][index][0]
                 #read_end = self._index_lists[label][index][1]
                 #bin_idx = self._bin_idx[label][index]
 
+                #normal smapling
                 if self._i[label] >= self._index_lists[label].shape[0]:
                     self._i[label] = 0
 
@@ -222,16 +224,11 @@ class FR_Data_Thread_by_Class(threading.Thread):
                 read_start = self._index_lists[label][index][0]
                 read_end = self._index_lists[label][index][1]
                 bin_idx = self._bin_idx[label][index]
-				
-                #t1 = time.time()
+                ###########
+
                 self._f_bins[bin_idx].seek(read_start)
-                #sum_t1 += (time.time()-t1)
-                #t1 = time.time()
                 data = self._f_bins[bin_idx].read(read_end - read_start)
-                #sum_t2 += (time.time()-t1)
-                #t1 = time.time()
                 img = Image.open(io.BytesIO(data))
-                #sum_t3 += (time.time()-t1)
                 h,w = img.size
                 if (h != self._img_height or w != self._img_width):
                     crop_img = img.resize((self._img_height, self._img_width), Image.ANTIALIAS)
@@ -252,8 +249,6 @@ class FR_Data_Thread_by_Class(threading.Thread):
         if (count < self._batch_size):
             res["img"] = res["img"][0:count]
             res["label"] = res["label"][0:count]
-        #if self.threadID < 3:
-        #    print("ID{:d} t1:{:4f} t2:{:4f} t3:{:4f} index:{:d} index:{:d}".format(self.threadID,sum_t1,sum_t2,sum_t3,self._i[0],self._i[1]))
         return res
        
     
