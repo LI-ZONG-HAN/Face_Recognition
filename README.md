@@ -45,7 +45,7 @@ it will make the network trained better because you never know how many steps th
 ### Multi-GPU training
 Need to install MPI4.0.0+ and honovod
 
-Modify train_Arc_loss_multi_task.py : comment line 9, un-comment line 10, comment line 732 , un-comment line733 which direct the path to save your trained model
+Modify train_Arc_loss_multi_task.py : comment line 9, un-comment line 10, comment line 727 , un-comment line728 which direct the path to save your trained model
 
 To run on a machine with 2 GPUs
 ```
